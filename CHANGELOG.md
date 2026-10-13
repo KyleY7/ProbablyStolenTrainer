@@ -1,5 +1,25 @@
 # Changes / 更新记录
 
+## v1.1.2 — Loaded reputation type fix / 声望类型识别修复
+
+### 简体中文
+
+- 根据三份实机日志定位连接失败：`StoreReputation.TypeInfo` 的 `0x2000A5A3` 是游戏尚未解析的类型标记，旧版错误地将它当成对象指针。店铺、玩家、日期及声望列表均已加载。
+- 改从已加载的声望对象读取类型，核对 `StoreReputation` 类名、空命名空间和所有对象的同一类型身份，不再要求该全局类型槽已解析，也不写入它。
+- 保留列表长度与容量、指针、势力 ID、数值、存档身份及写入校验；诊断报告同步检查实际声望对象。
+- 增加四项回归测试，使用日志中的原始标记复现旧版三项失败；修复后共 60 项通过，覆盖连接、数值修改、声望撤销和错误类型拒绝。
+
+已根据实机日志修正这一失败原因，仍需在运行游戏的 Windows 中确认 v1.1.2 的连接与修改结果。退出旧修改器后使用新版，进入店铺并重新选择进程。此版在本地 Git 记录和打包，GitHub 仓库继续保持私有。
+
+### English
+
+- Identify the connection failure from three live-game logs: `StoreReputation.TypeInfo` contains the unresolved type token `0x2000A5A3`, which the trainer incorrectly treated as an object pointer. The shop, player, station and reputation list were already loaded.
+- Read the class from an existing reputation object, validate the `StoreReputation` name and empty namespace, and require all entries to share that class. Do not require or write the global TypeInfo slot.
+- Preserve list bounds/capacity, pointer, faction-ID, numeric, save-identity and write validation. Update diagnostics to inspect actual reputation objects.
+- Add four regressions using the original token from the logs. The old implementation reproduced three failures; all 60 checks now pass, including connection, numeric edits, reputation undo and invalid-type rejection.
+
+This fixes the identified failure, but v1.1.2 still needs confirmation in the Windows system running the game. Close the old trainer, run this build, enter the shop and select the process again. The version is recorded and packaged locally; the GitHub repository remains private.
+
 ## v1.1.1 — Connection diagnostics / 连接诊断版
 
 ### 简体中文

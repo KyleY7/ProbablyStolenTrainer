@@ -59,7 +59,19 @@ namespace ProbablyStolenTrainer
                 Ptr(list + 0x10, field: "storeReputations._items");
             });
             Probe(report, "Station", delegate { Instance(BuildProfile.StationType, "StoreStation"); });
-            Probe(report, "Reputation type", delegate { Type(BuildProfile.ReputationType, "StoreReputation"); });
+            Probe(report, "Reputation type", delegate
+            {
+                int count;
+                long player = Instance(BuildProfile.PlayerType, "PlayerStore");
+                long array = ReputationList(player, out count);
+                long klass = ReputationClass(Ptr(array + 0x20, field: "storeReputations[0]"), "storeReputations[0]");
+                for (int i = 1; i < count; i++)
+                {
+                    string field = "storeReputations[" + i + "]";
+                    long obj = Ptr(array + 0x20 + i * 8, field: field);
+                    if (Ptr(obj, field: field + ".class") != klass) throw new InvalidDataException(L.T("声望对象类型不匹配。"));
+                }
+            });
             report.AppendLine("Read-only diagnostics. No game memory or save was written. No save strings or item contents collected.");
             return report.ToString();
         }

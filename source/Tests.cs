@@ -90,6 +90,7 @@ namespace ProbablyStolenTrainer
         {
             Memory.Long(Base + rva, klass); Memory.Long(klass + 0x10, klass + 0x403);
             Memory.Put(klass + 0x403, Encoding.ASCII.GetBytes(name + "\0"));
+            Memory.Long(klass + 0x18, klass + 0x480); Memory.Put(klass + 0x480, new byte[] { 0 });
             Memory.Long(klass + 0xB8, klass + 0x800); Memory.Long(klass + 0x800, instance); Memory.Long(instance, klass);
         }
     }
@@ -137,6 +138,45 @@ namespace ProbablyStolenTrainer
         }
         public static int Run(string report)
         {
+            Test("Loaded reputation objects connect with the real unresolved TypeInfo token", delegate
+            {
+                var f = new Fixture(); f.Memory.Long(Fixture.Base + BuildProfile.ReputationType, 0x2000A5A3);
+                var snapshot = f.Session.Connect();
+                Assert(snapshot.Factions.Count == 6 && snapshot.Factions[0].Display == "测试势力 0", "loaded objects remain readable");
+                Assert(f.Memory.Writes == 0 && f.Memory.CodeWrites == 0, "read-only connection");
+                Assert(BitConverter.ToInt64(f.Memory.Read(Fixture.Base + BuildProfile.ReputationType, 8), 0) == 0x2000A5A3, "metadata slot stays untouched");
+            });
+            Test("Lazy reputation metadata permits numeric edits and reputation undo", delegate
+            {
+                var f = new Fixture(); f.Memory.Long(Fixture.Base + BuildProfile.ReputationType, 0x2000A5A3); f.Session.Connect();
+                f.Session.Apply("cash", 45678, null); f.Session.Apply("day", 20, null); f.Session.Apply("rent", 30, null);
+                f.Session.Apply("reputation", -40.25m, "Faction2");
+                var snapshot = f.Session.Refresh();
+                Assert(snapshot.Cash == 45678 && snapshot.Day == 20 && snapshot.RentDays == 30 && snapshot.Factions[2].Amount == -40.25, "edits target existing objects");
+                f.Session.Undo(); snapshot = f.Session.Refresh();
+                Assert(snapshot.Factions[2].Amount == 26.5 && snapshot.Factions[1].Amount == 25.5, "undo preserves faction values");
+            });
+            Test("Object-derived reputation classes still reject wrong names, null and mixed classes", delegate
+            {
+                var f = new Fixture(); f.Memory.Long(Fixture.Base + BuildProfile.ReputationType, 0x2000A5A3);
+                f.Memory.Put(0x530403, Encoding.ASCII.GetBytes("OtherReputation\0"));
+                Reject(delegate { f.Session.Apply("cash", 1, null); }); Assert(f.Memory.Writes == 0, "wrong class name rejected");
+                f = new Fixture(); f.Memory.Put(0x530480, Encoding.ASCII.GetBytes("UnrelatedNamespace\0"));
+                Reject(delegate { f.Session.Apply("cash", 1, null); }); Assert(f.Memory.Writes == 0, "same-name class in another namespace rejected");
+                f = new Fixture(); f.Memory.Long(Fixture.Rep, 0);
+                Reject(delegate { f.Session.Apply("reputation", 1, null); }); Assert(f.Memory.Writes == 0, "null class rejected");
+                f = new Fixture(); f.Memory.Long(Fixture.Rep + 0x1000, 0x580000);
+                f.Memory.Long(0x580010, 0x580403); f.Memory.Put(0x580403, Encoding.ASCII.GetBytes("StoreReputation\0"));
+                Reject(delegate { f.Session.Apply("reputation", 1, null); }); Assert(f.Memory.Writes == 0, "same-name mixed classes rejected");
+            });
+            Test("Reputation diagnostics inspect loaded objects without resolving or writing metadata", delegate
+            {
+                var f = new Fixture(); f.Memory.Long(Fixture.Base + BuildProfile.ReputationType, 0x2000A5A3);
+                string diagnostic = f.Session.ConnectionReport(new IOException("test failure"));
+                Assert(diagnostic.Contains("Reputation type: OK") && diagnostic.Contains("storeReputations[0].class"), "actual reputation class diagnosed");
+                Assert(!diagnostic.Contains("Reputation type: IOException") && !diagnostic.Contains("测试势力"), "no stale-slot failure or save text");
+                Assert(f.Memory.Writes == 0 && f.Memory.CodeWrites == 0, "diagnostic reads only");
+            });
             Test("Connection failure identifies the exact null pointer without writing memory", delegate
             {
                 var f = new Fixture(); f.Memory.Long(0x520800, 0);

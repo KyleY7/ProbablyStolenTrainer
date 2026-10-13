@@ -272,15 +272,34 @@ namespace ProbablyStolenTrainer
             if (String.IsNullOrWhiteSpace(s.RunId)) s.RunId = "";
             return s;
         }
+        long ReputationList(long player, out int count)
+        {
+            long list = Ptr(player + 0x110, field: "PlayerStore.storeReputations");
+            long array = Ptr(list + 0x10, field: "storeReputations._items");
+            count = Int(list + 0x18);
+            long capacity = BitConverter.ToInt64(memory.Read(array + 0x18, 8), 0);
+            if (count < 1 || count > 32 || capacity < count || capacity > 1024) throw new InvalidDataException(L.T("声望列表尚未就绪或结构不匹配。"));
+            return array;
+        }
+        long ReputationClass(long obj, string field)
+        {
+            // Deserialization can create valid objects while the global TypeInfo slot
+            // still contains its unresolved metadata token (0x2000A5A3 in this build).
+            // The object's own klass is already initialized. Validate it before use.
+            long klass = Ptr(obj, field: field + ".class");
+            if (CString(Ptr(klass + 0x10, false, field: field + ".class.name")) != "StoreReputation"
+                || CString(Ptr(klass + 0x18, false, field: field + ".class.namespace")) != "")
+                throw new InvalidDataException(L.T("声望对象类型不匹配。"));
+            return klass;
+        }
         public Snapshot Read()
         {
             var s = ReadIdentity();
             s.Cash = Int(s.Player + 0x10); s.RentDays = Int(s.Player + 0x58); s.RentValue = Int(s.Player + 0x5C); s.Day = Int(s.Station + 0x30);
             if (s.Day < 0 || s.Day > 1000000 || Math.Abs((long)s.RentDays) > 1000000) throw new InvalidDataException(L.T("日期字段校验失败。"));
-            long list = Ptr(s.Player + 0x110, field: "PlayerStore.storeReputations"), array = Ptr(list + 0x10, field: "storeReputations._items"), repType = Type(BuildProfile.ReputationType, "StoreReputation");
-            int count = Int(list + 0x18);
-            long capacity = BitConverter.ToInt64(memory.Read(array + 0x18, 8), 0);
-            if (count < 1 || count > 32 || capacity < count || capacity > 1024) throw new InvalidDataException(L.T("声望列表尚未就绪或结构不匹配。"));
+            int count;
+            long array = ReputationList(s.Player, out count);
+            long repType = ReputationClass(Ptr(array + 0x20, field: "storeReputations[0]"), "storeReputations[0]");
             var ids = new HashSet<string>();
             for (int i = 0; i < count; i++)
             {

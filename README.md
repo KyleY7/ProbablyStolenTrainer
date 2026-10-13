@@ -1,20 +1,20 @@
-# Probably Stolen Trainer v1.1.1
+# Probably Stolen Trainer v1.1.2
 
 [简体中文](README.zh-CN.md) · **English** · [Changes / 更新记录](CHANGELOG.md)
 
-**v1.1.1 adds automatic connection diagnostics for the reported object-not-ready failure.** The live-game cause is still unknown; this diagnostic build does not establish that connection is fixed. It includes the v1.1.0 item library and v1.0.1 save-detection change; see [the changelog](CHANGELOG.md).
+**v1.1.2 fixes the reputation-type lookup that caused the reported connection failure.** It validates the class of loaded reputation objects instead of treating an unresolved type token as a pointer. Automatic diagnostics and the existing item library are included; see [the changelog](CHANGELOG.md).
 
 A portable Windows x64 trainer for **Probably Stolen Demo, Steam build 25382790**. Switch between Simplified Chinese and English without disconnecting. No Cheat Engine or mod loader is required.
 
 **Compatibility:** this release checks the SHA-256 of both game binaries before connecting. It supports the exact Demo build below; it does not claim compatibility with the full game or later updates.
 
-**Validation status:** 56 automated checks passed, including synthetic game objects, connection diagnostics, native Win32 memory operations in isolated test processes, and language switching. Both languages were rendered and checked. **Connection, edits, item placement, appraisal tooltips and save reloads have not yet been tested in a live game session.**
+**Validation status:** 60 automated checks passed, including a reproduction of the original failure using the token from live-game logs, synthetic game objects, connection diagnostics, native Win32 memory operations in isolated test processes, and language switching. Both languages were rendered and checked. **Successful connection and gameplay behavior in v1.1.2 still need live-game confirmation.**
 
 ![English interface using sample data](docs/images/preview-en.png)
 
 ## Quick start
 
-1. Extract `ProbablyStolenTrainer-v1.1.1-win-x64.zip` and run `ProbablyStolenTrainer.exe` on Windows 10/11 with .NET Framework 4.8.
+1. Extract `ProbablyStolenTrainer-v1.1.2-win-x64.zip` and run `ProbablyStolenTrainer.exe` on Windows 10/11 with .NET Framework 4.8.
 2. Start the Demo through Steam and load a save into the shop. Run the trainer in the **same Windows system, user and privilege level** as the game.
 3. Use **Back up saves…** before editing. Pause the game, click **Select process…**, and select `Probably Stolen.exe`. Search by name, PID or path; refresh the list after starting the game. Double-clicking a row also connects.
 4. Check the displayed current values, enter a new value, and press the matching **Set** button.
