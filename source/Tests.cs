@@ -16,9 +16,11 @@ namespace ProbablyStolenTrainer
         public int CodeWrites, FailOnCodeWrite;
         public bool WriteThenFail;
         public bool Alive = true;
+        public Action<long, int> BeforeRead;
         public bool IsAlive { get { return Alive; } }
         public byte[] Read(long address, int size)
         {
+            if (BeforeRead != null) BeforeRead(address, size);
             byte[] result = new byte[size];
             for (int i = 0; i < size; i++) if (!data.TryGetValue(address + i, out result[i])) throw new IOException("Unmapped test memory");
             return result;
@@ -46,7 +48,7 @@ namespace ProbablyStolenTrainer
         public const long Base = 0x180000000, Player = 0x100000, Station = 0x200000, Entry = 0x300000, Rep = 0x400000;
         public readonly FakeMemory Memory = new FakeMemory();
         public Session Session;
-        public Fixture()
+        public Fixture(string runId = "fixture-run-1", int saveSlot = 0)
         {
             Memory.Put(Base + BuildProfile.AppraisalTooltipGate, new byte[] { 0x80, 0xB8, 0x22, 0x01, 0x00, 0x00, 0x00, 0x74, 0x7E, 0x33, 0xD2, 0x48, 0x8B, 0xCB, 0xE8 });
             MakeType(BuildProfile.PlayerType, 0x500000, Player, "PlayerStore");
@@ -55,7 +57,9 @@ namespace ProbablyStolenTrainer
             MakeType(BuildProfile.ReputationType, 0x530000, Rep, "StoreReputation");
             Memory.Long(Entry + 0x10, 0x900000);
             Memory.Int(Player + 0x10, 12345); Memory.Int(Player + 0x58, 3); Memory.Int(Player + 0x5C, 210); Memory.Int(Station + 0x30, 18);
-            Memory.Long(Player + 0x30, 0x600000); Memory.String(0x600000, "fixture-run-1");
+            Memory.Int(Player + 0x18, saveSlot); Memory.Int(Player + 0x38, 1);
+            Memory.Long(Player + 0x30, runId == null ? 0 : 0x600000);
+            if (runId != null) Memory.String(0x600000, runId);
             Memory.Long(Player + 0x110, 0x610000); Memory.Long(0x610010, 0x620000); Memory.Int(0x610018, 6); Memory.Long(0x620018, 8);
             for (int i = 0; i < 6; i++)
             {
@@ -91,6 +95,66 @@ namespace ProbablyStolenTrainer
         }
         public static int Run(string report)
         {
+            Test("Loaded game with empty, whitespace or null run ID connects and edits correctly", delegate
+            {
+                foreach (string runId in new string[] { "", "   ", null })
+                {
+                    var f = new Fixture(runId);
+                    Assert(f.Memory.Writes == 0 && f.Memory.CodeWrites == 0, "connection is read-only");
+                    f.Session.Apply("cash", 4567, null); f.Session.Apply("day", 20, null);
+                    f.Session.Apply("rent", 10, null); f.Session.Apply("reputation", 100, "Faction2");
+                    var s = f.Session.Refresh();
+                    Assert(s.Cash == 4567 && s.Day == 20 && s.RentDays == 10 && s.Factions[2].Amount == 100, "edits work without run ID");
+                    f.Session.Undo(); Assert(f.Session.Refresh().Factions[2].Amount == 26.5, "undo retains original value");
+                }
+            });
+            Test("New game with unassigned save slot and empty run ID is supported", delegate
+            {
+                var f = new Fixture("", -1); f.Session.Apply("cash", 800, null);
+                Assert(f.Session.Refresh().Cash == 800, "not-yet-saved game");
+            });
+            Test("Save slot or run number change with empty run ID blocks stale edits", delegate
+            {
+                foreach (long field in new long[] { 0x18, 0x38 })
+                {
+                    var f = new Fixture(""); f.Session.Apply("cash", 400, null);
+                    f.Memory.Int(Fixture.Player + field, 2);
+                    Reject(delegate { f.Session.Apply("cash", 500, null); });
+                    Assert(f.Memory.Writes == 1 && !f.Session.CanUndo, "save identity change clears undo without another write");
+                }
+            });
+            Test("Native scene replacement invalidates the session even when managed addresses match", delegate
+            {
+                var f = new Fixture(); f.Session.Apply("cash", 400, null);
+                f.Memory.Long(Fixture.Entry + 0x10, 0x900100);
+                Reject(delegate { f.Session.Undo(); });
+                Assert(f.Memory.Writes == 1 && !f.Session.CanUndo, "scene lifetime changed");
+            });
+            Test("Save identity changes during a snapshot are rejected and clear pending undo", delegate
+            {
+                var f = new Fixture(); f.Session.Apply("cash", 400, null);
+                f.Memory.BeforeRead = delegate(long address, int size)
+                {
+                    if (address == Fixture.Player + 0x10) { f.Memory.BeforeRead = null; f.Memory.Int(Fixture.Player + 0x18, 7); }
+                };
+                Reject(delegate { f.Session.Refresh(); });
+                Assert(f.Memory.Writes == 1 && !f.Session.CanUndo, "torn snapshot not accepted");
+            });
+            Test("Nullable run ID does not permit invalid non-null pointers or missing scene objects", delegate
+            {
+                var f = new Fixture(); f.Memory.Long(Fixture.Player + 0x30, 0x123);
+                Reject(delegate { f.Session.Apply("cash", 1, null); }); Assert(f.Memory.Writes == 0, "bad pointer rejected");
+                f = new Fixture(); f.Memory.Long(Fixture.Player + 0x30, 0); f.Memory.Long(Fixture.Entry + 0x10, 0);
+                Reject(delegate { f.Session.Connect(); }); Assert(f.Memory.Writes == 0, "scene still required");
+            });
+            Test("Normal save timestamps and elapsed play time do not invalidate the session", delegate
+            {
+                var f = new Fixture(); f.Session.Apply("cash", 400, null);
+                f.Memory.Int(Fixture.Player + 0x40, 100); f.Memory.Int(Fixture.Player + 0x44, 200);
+                f.Memory.Int(Fixture.Player + 0x48, 300); f.Memory.Long(Fixture.Player + 0x50, 400);
+                Assert(f.Session.Refresh().Cash == 400 && f.Session.CanUndo, "ordinary saving keeps the connection");
+                f.Session.Undo(); Assert(f.Session.Refresh().Cash == 12345, "undo still available");
+            });
             Test("Read verified pointer chains and Unicode factions without any write", delegate
             {
                 var f = new Fixture(); var s = f.Session.Refresh();

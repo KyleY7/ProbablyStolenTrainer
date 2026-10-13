@@ -1,18 +1,20 @@
-# Probably Stolen Trainer v1.0.0
+# Probably Stolen Trainer v1.0.1
 
-[简体中文](README.zh-CN.md) · **English** · [Download v1.0.0](https://github.com/KyleY7/probably-stolen-trainer/releases/tag/v1.0.0)
+[简体中文](README.zh-CN.md) · **English** · [Changes / 更新记录](CHANGELOG.md)
+
+**v1.0.1 fixes an incorrect save-detection check. This local repair build still needs live-game confirmation; see [the changelog](CHANGELOG.md).
 
 A portable Windows x64 trainer for **Probably Stolen Demo, Steam build 25382790**. Switch between Simplified Chinese and English without disconnecting. No Cheat Engine or mod loader is required.
 
 **Compatibility:** this release checks the SHA-256 of both game binaries before connecting. It supports the exact Demo build below; it does not claim compatibility with the full game or later updates.
 
-**Validation status:** 33 automated checks passed, including synthetic game objects, native Win32 memory operations inside the test process, and language switching. Both languages were rendered and checked. **Connection, edits, appraisal tooltips and save reloads have not yet been tested in a live game session.**
+**Validation status:** 40 automated checks passed, including synthetic game objects, native Win32 memory operations inside the test process, and language switching. Both languages were rendered and checked. **Connection, edits, appraisal tooltips and save reloads have not yet been tested in a live game session.**
 
 ![English interface using sample data](docs/images/preview-en.png)
 
 ## Quick start
 
-1. Download `ProbablyStolenTrainer-v1.0.0-win-x64.zip` from [Releases](https://github.com/KyleY7/probably-stolen-trainer/releases/tag/v1.0.0), extract it, and run `ProbablyStolenTrainer.exe` on Windows 10/11 with .NET Framework 4.8.
+1. Extract the local repair package `ProbablyStolenTrainer-v1.0.1-win-x64.zip` and run `ProbablyStolenTrainer.exe` on Windows 10/11 with .NET Framework 4.8.
 2. Start the Demo through Steam and load a save into the shop. Run the trainer in the **same Windows system, user and privilege level** as the game.
 3. Use **Back up saves…** before editing. Pause the game, click **Select process…**, and select `Probably Stolen.exe`. Search by name, PID or path; refresh the list after starting the game. Double-clicking a row also connects.
 4. Check the displayed current values, enter a new value, and press the matching **Set** button.

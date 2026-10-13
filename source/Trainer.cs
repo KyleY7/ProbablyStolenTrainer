@@ -94,7 +94,7 @@ namespace ProbablyStolenTrainer
             topmost.CheckedChanged += delegate { TopMost = topmost.Checked; }; Controls.Add(topmost);
             log = new TextBox { Left = 28, Top = 635, Width = 803, Height = 69, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, BackColor = Color.FromArgb(12, 19, 29), ForeColor = muted, BorderStyle = BorderStyle.FixedSingle };
             Controls.Add(log);
-            LabelAt(this, L.T("适配 Demo · Steam 构建 25382790  |  v1.0.0  |  选择进程，自动识别路径"), 28, 717, 806, 25).ForeColor = muted;
+            LabelAt(this, L.T("适配 Demo · Steam 构建 25382790  |  v1.0.1  |  选择进程，自动识别路径"), 28, 717, 806, 25).ForeColor = muted;
             SetConnected(false);
             Log(L.T("就绪。点击“选择进程…”连接游戏，无需设置盘符。请在玩游戏的 Windows 内运行。"));
             timer = new Timer { Interval = 1200 };
@@ -216,6 +216,7 @@ namespace ProbablyStolenTrainer
                     SetStatus("已连接 · ");
                     Log(L.T("游戏目录（来自所选进程）：") + session.GameDirectory);
                     Log(L.T("版本与对象校验通过。可以修改当前存档的数值。"));
+                    Log(L.F("已读取当前游戏：金钱 {0:N0}，第 {1} 天，租金剩余 {2} 天。", last.Cash, last.Day, last.RentDays));
                 }
                 catch { Disconnect(); SetStatus("连接失败 · 请检查游戏状态"); throw; }
                 finally { UseWaitCursor = false; }

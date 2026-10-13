@@ -141,13 +141,15 @@ namespace ProbablyStolenTrainer
     }
     public sealed class Snapshot
     {
-        public long Player, Station, Entry;
+        public long Player, Station, Entry, EntryNative;
         public string RunId;
+        public int SaveSlotId, RunNumber;
         public int Cash, Day, RentDays, RentValue;
         public List<Faction> Factions = new List<Faction>();
         public bool SameRun(Snapshot other)
         {
-            return other != null && Player == other.Player && Station == other.Station && Entry == other.Entry && RunId == other.RunId;
+            return other != null && Player == other.Player && Station == other.Station && Entry == other.Entry
+                && EntryNative == other.EntryNative && SaveSlotId == other.SaveSlotId && RunNumber == other.RunNumber && RunId == other.RunId;
         }
     }
     public sealed class Edit
@@ -187,9 +189,10 @@ namespace ProbablyStolenTrainer
                 catch { session.Dispose(); throw; }
             }
         }
-        long Ptr(long address, bool aligned = true)
+        long Ptr(long address, bool aligned = true, bool allowNull = false)
         {
             long p = BitConverter.ToInt64(memory.Read(address, 8), 0);
+            if (allowNull && p == 0) return 0;
             if (p < 0x10000 || p >= 0x0000800000000000L || (aligned && (p & 7) != 0)) throw new IOException(L.T("游戏对象尚未就绪，请先读入存档。"));
             return p;
         }
@@ -220,15 +223,25 @@ namespace ProbablyStolenTrainer
             if (Ptr(instance) != klass) throw new InvalidDataException(L.T("游戏对象校验失败：") + name);
             return instance;
         }
-        public Snapshot Read()
+        Snapshot ReadIdentity()
         {
             var s = new Snapshot();
             s.Entry = Instance(BuildProfile.EntryType, "EmporiumEntry");
-            Ptr(s.Entry + 0x10); // Unity native object must still be alive.
+            s.EntryNative = Ptr(s.Entry + 0x10); // Unity native object must still be alive.
             s.Player = Instance(BuildProfile.PlayerType, "PlayerStore");
             s.Station = Instance(BuildProfile.StationType, "StoreStation");
-            s.RunId = StringAt(Ptr(s.Player + 0x30));
-            if (String.IsNullOrWhiteSpace(s.RunId)) throw new IOException(L.T("没有已加载的游戏进度。"));
+            s.SaveSlotId = Int(s.Player + 0x18);
+            s.RunNumber = Int(s.Player + 0x38);
+            // This build initializes runID to an empty string; InitialSave fills it later.
+            // It is optional identity metadata, not evidence that gameplay has loaded.
+            long runId = Ptr(s.Player + 0x30, true, true);
+            s.RunId = runId == 0 ? "" : StringAt(runId);
+            if (String.IsNullOrWhiteSpace(s.RunId)) s.RunId = "";
+            return s;
+        }
+        public Snapshot Read()
+        {
+            var s = ReadIdentity();
             s.Cash = Int(s.Player + 0x10); s.RentDays = Int(s.Player + 0x58); s.RentValue = Int(s.Player + 0x5C); s.Day = Int(s.Station + 0x30);
             if (s.Day < 0 || s.Day > 1000000 || Math.Abs((long)s.RentDays) > 1000000) throw new InvalidDataException(L.T("日期字段校验失败。"));
             long list = Ptr(s.Player + 0x110), array = Ptr(list + 0x10), repType = Type(BuildProfile.ReputationType, "StoreReputation");
@@ -246,14 +259,16 @@ namespace ProbablyStolenTrainer
                 s.Factions.Add(f);
             }
             // Detect a reload while the snapshot was being read.
-            if (Instance(BuildProfile.PlayerType, "PlayerStore") != s.Player || Instance(BuildProfile.StationType, "StoreStation") != s.Station || Instance(BuildProfile.EntryType, "EmporiumEntry") != s.Entry)
+            if (!s.SameRun(ReadIdentity()))
                 throw new IOException(L.T("场景正在切换，请稍后重新连接。"));
             return s;
         }
-        public Snapshot Connect() { attached = Read(); undo = null; return attached; }
+        public Snapshot Connect() { attached = null; undo = null; attached = Read(); return attached; }
         public Snapshot Refresh()
         {
-            var current = Read();
+            Snapshot current;
+            try { current = Read(); }
+            catch { undo = null; throw; }
             if (!current.SameRun(attached)) { undo = null; throw new IOException(L.T("存档或场景已切换，请重新连接；旧操作已清除。")); }
             return current;
         }

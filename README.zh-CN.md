@@ -1,18 +1,20 @@
-# Probably Stolen 修改器 v1.0.0
+# Probably Stolen 修改器 v1.0.1
 
-**简体中文** · [English](README.md) · [下载 v1.0.0](https://github.com/KyleY7/probably-stolen-trainer/releases/tag/v1.0.0)
+**简体中文** · [English](README.md) · [更新记录](CHANGELOG.md)
+
+**v1.0.1 修复存档状态误判，当前为待实机确认的本地修复版。** 详见[更新记录](CHANGELOG.md)。
 
 适用于 **Probably Stolen Demo，Steam 构建 25382790** 的 Windows x64 便携修改器。支持中英文即时切换，无需断开游戏连接，也无需 Cheat Engine 或模组加载器。
 
 **兼容范围：** 每次连接前都会核对游戏程序与元数据的 SHA-256，仅支持下方列出的试玩版构建，不保证支持正式版或后续更新。
 
-**验证状态：** 已通过 33 项自动测试，覆盖模拟游戏对象、测试程序自身的 Win32 内存操作和语言切换；中英文界面均已渲染检查。**尚未在真实游戏会话中验证连接、修改、鉴定提示和保存回读。**
+**验证状态：** 已通过 40 项自动测试，覆盖模拟游戏对象、测试程序自身的 Win32 内存操作和语言切换；中英文界面均已渲染检查。**尚未在真实游戏会话中验证连接、修改、鉴定提示和保存回读。**
 
 ![中文界面，使用示例数据](docs/images/preview-zh-CN.png)
 
 ## 快速开始
 
-1. 在[发布页面](https://github.com/KyleY7/probably-stolen-trainer/releases/tag/v1.0.0)下载 `ProbablyStolenTrainer-v1.0.0-win-x64.zip`，解压后运行 `ProbablyStolenTrainer.exe`。需要 Windows 10/11 和 .NET Framework 4.8。
+1. 解压本地修复包 `ProbablyStolenTrainer-v1.0.1-win-x64.zip` 后运行 `ProbablyStolenTrainer.exe`。需要 Windows 10/11 和 .NET Framework 4.8。
 2. 从 Steam 启动试玩版，读入存档并进入店铺。修改器与游戏须在**同一套 Windows、同一用户与权限级别**下运行。
 3. 先用**备份存档…**保留副本。暂停游戏，点击**选择进程…**，选中 `Probably Stolen.exe`。支持搜索名称、PID、路径和刷新列表；双击一行也能连接。
 4. 核对当前值，输入目标值，点击对应的设置按钮。
