@@ -8,13 +8,15 @@
 
 **兼容范围：** 每次连接前都会核对游戏程序与元数据的 SHA-256，仅支持下方列出的试玩版构建，不保证支持正式版或后续更新。
 
-**验证状态：** 已通过 60 项自动测试，使用实机日志中的标记复现原始故障，并覆盖模拟游戏对象、连接诊断、隔离测试进程的 Win32 内存操作和语言切换；中英文界面均已渲染检查。**v1.1.2 的成功连接及实际游戏内效果仍待实机确认。**
+**验证状态：** 已通过 60 项自动测试，使用实机日志中的标记复现原始故障，并覆盖模拟游戏对象、连接诊断、隔离测试进程的 Win32 内存操作和语言切换；中英文界面均已渲染检查。**用户已确认 v1.1.2 在游戏中可用，尚未逐项完成全部功能及保存回读的独立实机验证。**
+
+**仅供学习，欢迎大家反馈。** 详见 [v1.1.2 发布说明](docs/releases/v1.1.2.md)，问题与建议可提交到 [GitHub Issues](https://github.com/KyleY7/probably-stolen-trainer/issues)。
 
 ![中文界面，使用示例数据](docs/images/preview-zh-CN.png)
 
 ## 快速开始
 
-1. 解压 `ProbablyStolenTrainer-v1.1.2-win-x64.zip` 后运行 `ProbablyStolenTrainer.exe`。需要 Windows 10/11 和 .NET Framework 4.8。
+1. 从 [v1.1.2 发布页](https://github.com/KyleY7/probably-stolen-trainer/releases/tag/v1.1.2)下载并解压 `ProbablyStolenTrainer-v1.1.2-win-x64.zip`，运行 `ProbablyStolenTrainer.exe`。需要 Windows 10/11 和 .NET Framework 4.8。
 2. 从 Steam 启动试玩版，读入存档并进入店铺。修改器与游戏须在**同一套 Windows、同一用户与权限级别**下运行。
 3. 先用**备份存档…**保留副本。暂停游戏，点击**选择进程…**，选中 `Probably Stolen.exe`。支持搜索名称、PID、路径和刷新列表；双击一行也能连接。
 4. 核对当前值，输入目标值，点击对应的设置按钮。

@@ -14,7 +14,7 @@ Language tests cover preference persistence and invalid settings, English except
 
 The supported game's two file hashes, tooltip call path, item-library signatures, shortcut-handler exit branch, native library initialization and template quantity were checked locally. Singleton getters were also checked against the native code: the supported build uses class offset `0xB8` and static instance offset zero. The native metadata resolver confirms the logged value is an unresolved type token, not a runtime class pointer. Chinese and English main-window and process-picker previews were rendered using sample data and inspected. The executable carries file version `1.1.2.0`.
 
-**Not yet validated:** connection to a live game session, visible in-game appraisal values, opening/closing the native item library, dragging items into the back room, edits during actual gameplay, reward/UI refresh timing, and save/reload persistence. Automated tests and static analysis are not a substitute for those checks. No real save was modified during validation.
+The user has confirmed v1.1.2 works in the game. The feedback does not establish a separate result for each feature. **Independent live-game checks still outstanding:** appraisal values, item-library opening/closing and back-room placement, numeric edits, reward/UI refresh timing and save/reload persistence. Automated tests and static analysis are not a substitute for those checks. No real save was modified by the automated validation.
 
 Run `build.ps1`, then `test.ps1`. The release ZIP contains the generated test report. A live-game check should use a backed-up save and confirm each numeric field, undo, appraisal enable/disable/normal-exit restoration, item-library open/drag/close/disable, and save/reload behavior. Close the library window with its shortcut before disabling it or exiting the trainer.
 
@@ -32,7 +32,7 @@ v1.1.2 新增四项回归测试，使用三份用户实机日志及原始 GameAs
 
 已在本地核对支持版本的两份文件哈希、鉴定提示调用路径、物品库代码签名、按键处理器退出跳转、原生物品库初始化与模板数量；同时复核单例原生代码，确认该版本使用类偏移 `0xB8` 和静态实例偏移零。原生元数据解析器确认日志值是尚未解析的类型标记，并非运行时类型指针。用示例数据渲染并检查了中英文主窗口与进程选择窗口。程序文件版本为 `1.1.2.0`。
 
-**尚未验证：** 真实游戏会话连接、游戏内鉴定显示、打开与关闭原生物品库、拖放物品到后仓、实际游玩时的数值修改、奖励与界面刷新时机、保存后回读。自动测试和静态分析不能替代这些检查。验证过程中没有改动真实存档。
+用户已确认 v1.1.2 在游戏中可用，但这一反馈没有逐项列出各功能结果。**仍待独立实机验证：** 游戏内鉴定显示、物品库开关与后仓拖放、数值修改、奖励与界面刷新时机、保存后回读。自动测试和静态分析不能替代这些检查。自动验证过程中没有改动真实存档。
 
 先运行 `build.ps1`，再运行 `test.ps1`。发布 ZIP 内附生成的测试报告。实机检查应使用已备份存档，逐项核对数值、撤销、鉴定开关及正常退出恢复、物品库打开／拖放／关闭／取消开关、保存回读效果。取消物品库开关或退出修改器前，先按快捷键关闭游戏内物品库窗口。
 

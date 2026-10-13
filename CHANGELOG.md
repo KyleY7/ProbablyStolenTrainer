@@ -9,7 +9,7 @@
 - 保留列表长度与容量、指针、势力 ID、数值、存档身份及写入校验；诊断报告同步检查实际声望对象。
 - 增加四项回归测试，使用日志中的原始标记复现旧版三项失败；修复后共 60 项通过，覆盖连接、数值修改、声望撤销和错误类型拒绝。
 
-已根据实机日志修正这一失败原因，仍需在运行游戏的 Windows 中确认 v1.1.2 的连接与修改结果。退出旧修改器后使用新版，进入店铺并重新选择进程。此版在本地 Git 记录和打包，GitHub 仓库继续保持私有。
+用户已确认 v1.1.2 在游戏中可用，本版公开发布，详见[双语发布说明](docs/releases/v1.1.2.md)。退出旧修改器后使用新版，进入店铺并重新选择进程。仅供学习，欢迎大家反馈。
 
 ### English
 
@@ -18,7 +18,7 @@
 - Preserve list bounds/capacity, pointer, faction-ID, numeric, save-identity and write validation. Update diagnostics to inspect actual reputation objects.
 - Add four regressions using the original token from the logs. The old implementation reproduced three failures; all 60 checks now pass, including connection, numeric edits, reputation undo and invalid-type rejection.
 
-This fixes the identified failure, but v1.1.2 still needs confirmation in the Windows system running the game. Close the old trainer, run this build, enter the shop and select the process again. The version is recorded and packaged locally; the GitHub repository remains private.
+The user has confirmed v1.1.2 works in the game. This version is publicly released; see the [bilingual release notes](docs/releases/v1.1.2.md). Close the old trainer, run this build, enter the shop and select the process again. Provided for learning purposes only. Feedback is welcome.
 
 ## v1.1.1 — Connection diagnostics / 连接诊断版
 
