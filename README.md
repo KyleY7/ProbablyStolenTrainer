@@ -1,10 +1,10 @@
-# Probably Stolen Trainer v2.0.0
+# Probably Stolen Trainer v2.0.0 / 深空当铺：可能是偷的
 
 [简体中文](README.zh-CN.md) · **English** · [Changes / 更新记录](CHANGELOG.md)
 
 **v2.0.0 introduces a warm, terminal-inspired UI with a Claude Code-like feel.** The main window and process picker use paper colors, terracotta accents and monospace headings. The resizable main window scrolls when space is limited. Existing game features and the v1.1.2 connection fix are retained; see [the changelog](CHANGELOG.md).
 
-A portable Windows x64 trainer for **Probably Stolen Demo, Steam build 25382790**. Switch between Simplified Chinese and English without disconnecting. No Cheat Engine or mod loader is required.
+A portable Windows x64 trainer for **Probably Stolen (深空当铺：可能是偷的), Demo / Steam build 25382790**. Switch between Simplified Chinese and English without disconnecting. No Cheat Engine or mod loader is required.
 
 **Compatibility:** this release checks the SHA-256 of both game binaries before connecting. It supports the exact Demo build below; it does not claim compatibility with the full game or later updates.
 
