@@ -9,13 +9,15 @@ using System.Text;
 namespace ProbablyStolenTrainer
 {
     // Test-only memory layout. No game DLL, code, assets or save is shipped.
-    sealed class FakeMemory : ICodeMemory
+    sealed class FakeMemory : ITransactionalCodeMemory
     {
         readonly Dictionary<long, byte> data = new Dictionary<long, byte>();
         public int Writes, FailOnWrite;
         public int CodeWrites, FailOnCodeWrite;
         public bool WriteThenFail;
         public bool Alive = true;
+        public bool PatchBusy;
+        public int Transactions;
         public Action<long, int> BeforeRead;
         public bool IsAlive { get { return Alive; } }
         public byte[] Read(long address, int size)
@@ -42,6 +44,12 @@ namespace ProbablyStolenTrainer
             }
             Put(address, new byte[] { value });
         }
+        public void ApplyCodeChanges(IList<CodeChange> changes, long busyStart, long busyEnd)
+        {
+            Transactions++;
+            if (PatchBusy) throw new IOException("Simulated busy menu handler");
+            CodeTransaction.Apply(this, changes, delegate(long address, byte[] data) { for (int i = 0; i < data.Length; i++) WriteCodeByte(address + i, data[i]); });
+        }
     }
     sealed class Fixture
     {
@@ -55,6 +63,15 @@ namespace ProbablyStolenTrainer
             MakeType(BuildProfile.StationType, 0x510000, Station, "StoreStation");
             MakeType(BuildProfile.EntryType, 0x520000, Entry, "EmporiumEntry");
             MakeType(BuildProfile.ReputationType, 0x530000, Rep, "StoreReputation");
+            MakeType(BuildProfile.DebugHandlerType, 0x540000, 0xA00000, "DebugHandler");
+            MakeType(BuildProfile.GridInventoryType, 0x550000, 0xA10000, "GameGridInventory");
+            MakeType(BuildProfile.PixelWindowType, 0x560000, 0xA20000, "PixelWindow");
+            MakeType(BuildProfile.ScrollInventoryType, 0x570000, 0xA30000, "GameGridScrollableInventory");
+            Memory.Long(Entry + 0x98, 0xA10000);
+            Memory.Long(0xA00010, 0xA40000); Memory.Put(0xA0001D, new byte[] { 1 }); Memory.Int(0xA00020, 291);
+            Memory.Long(0xA00048, 0xA20000); Memory.Long(0xA00050, 0xA30000);
+            Memory.Put(Player + 0x122, new byte[] { 0 });
+            foreach (var change in ItemLibrary.Profile(Base)) Memory.Put(change.Address, change.Before);
             Memory.Long(Entry + 0x10, 0x900000);
             Memory.Int(Player + 0x10, 12345); Memory.Int(Player + 0x58, 3); Memory.Int(Player + 0x5C, 210); Memory.Int(Station + 0x30, 18);
             Memory.Int(Player + 0x18, saveSlot); Memory.Int(Player + 0x38, 1);
@@ -93,8 +110,155 @@ namespace ProbablyStolenTrainer
             try { action(); results.Add("PASS " + name); }
             catch (Exception ex) { failed++; results.Add("FAIL " + name + ": " + ex.Message); }
         }
+        public static int RunPatchHelper(string folder)
+        {
+            IntPtr page = VirtualAlloc(IntPtr.Zero, new UIntPtr(4096), 0x3000, 0x04);
+            if (page == IntPtr.Zero) return 2;
+            try
+            {
+                byte[] original = Enumerable.Range(16, 16).Select(i => (byte)i).ToArray();
+                Marshal.Copy(original, 0, page, original.Length);
+                uint old;
+                if (!VirtualProtect(page, new UIntPtr(4096), 0x20, out old)) return 3;
+                File.WriteAllText(Path.Combine(folder, "ready.txt"), page.ToInt64().ToString(System.Globalization.CultureInfo.InvariantCulture));
+                for (int i = 0; i < 1000; i++)
+                {
+                    if (File.Exists(Path.Combine(folder, "stop.txt")))
+                    {
+                        byte[] current = new byte[16]; Marshal.Copy(page, current, 0, current.Length);
+                        bool protection = VirtualProtect(page, new UIntPtr(4096), 0x20, out old) && old == 0x20;
+                        return current.SequenceEqual(original) && protection ? 0 : 4;
+                    }
+                    System.Threading.Thread.Sleep(10);
+                }
+                return 5;
+            }
+            finally { VirtualFree(page, UIntPtr.Zero, 0x8000); }
+        }
         public static int Run(string report)
         {
+            Test("Item library is opt-in, reads the actual hotkey and never enables global dev mode", delegate
+            {
+                var f = new Fixture(); Assert(!f.Session.ItemLibraryEnabled && f.Memory.CodeWrites == 0, "default off");
+                f.Session.SetItemLibraryEnabled(true);
+                Assert(f.Session.ItemLibraryEnabled && f.Session.ItemMenuKey == "F10", "enabled and actual key");
+                foreach (var change in ItemLibrary.Profile(Fixture.Base)) Assert(f.Memory.Read(change.Address, change.After.Length).SequenceEqual(change.After), "verified patches");
+                Assert(f.Memory.Read(Fixture.Player + 0x122, 1)[0] == 0 && f.Memory.Writes == 0, "no global developer mode or item memory writes");
+                int count = f.Memory.CodeWrites; f.Session.SetItemLibraryEnabled(true); Assert(f.Memory.CodeWrites == count, "idempotent enable");
+                f.Session.SetItemLibraryEnabled(false);
+                Assert(!f.Session.ItemLibraryEnabled, "disabled");
+                foreach (var change in ItemLibrary.Profile(Fixture.Base)) Assert(f.Memory.Read(change.Address, change.Before.Length).SequenceEqual(change.Before), "restored");
+            });
+            Test("Library branch skips all later debug actions using the original function epilogue", delegate
+            {
+                var changes = ItemLibrary.Profile(Fixture.Base);
+                var tail = changes.Single(c => c.Address == Fixture.Base + BuildProfile.ItemMenuTail);
+                Assert(tail.After[0] == 0xE9 && tail.Address + 5 + BitConverter.ToInt32(tail.After, 1) == Fixture.Base + 0x7B4613, "epilogue target");
+                var gate = changes.Single(c => c.Address == Fixture.Base + BuildProfile.ItemMenuGate);
+                Assert(gate.Before.Where((b, i) => b != gate.After[i]).Count() == 1 && gate.After[6] == 255, "only comparison immediate differs");
+            });
+            Test("Unavailable warehouse, uninitialized menu or missing hotkey rejects before patching", delegate
+            {
+                foreach (int kind in new[] { 0, 1, 2 })
+                {
+                    var f = new Fixture();
+                    if (kind == 0) f.Memory.Long(Fixture.Entry + 0x98, 0);
+                    if (kind == 1) f.Memory.Put(0xA0001D, new byte[] { 0 });
+                    if (kind == 2) f.Memory.Int(0xA00020, 0);
+                    Reject(delegate { f.Session.SetItemLibraryEnabled(true); });
+                    Assert(f.Memory.CodeWrites == 0 && !f.Session.ItemLibraryEnabled, "no patch");
+                }
+            });
+            Test("Foreign menu code rejects the entire transaction before any write", delegate
+            {
+                var f = new Fixture(); f.Memory.Put(Fixture.Base + BuildProfile.ItemMenuGate, new byte[] { 0x90 });
+                Reject(delegate { f.Session.SetItemLibraryEnabled(true); });
+                Assert(f.Memory.CodeWrites == 0 && !f.Session.ItemLibraryEnabled, "foreign code preserved");
+            });
+            Test("Failed menu patch transactions roll back partial and completed regions", delegate
+            {
+                foreach (bool after in new[] { false, true })
+                foreach (int position in new[] { 1, 3, 12, 22 })
+                {
+                    var f = new Fixture(); f.Memory.FailOnCodeWrite = position; f.Memory.WriteThenFail = after;
+                    Reject(delegate { f.Session.SetItemLibraryEnabled(true); });
+                    foreach (var c in ItemLibrary.Profile(Fixture.Base)) Assert(f.Memory.Read(c.Address, c.Before.Length).SequenceEqual(c.Before), "full rollback");
+                    Assert(!f.Session.ItemLibraryEnabled, "no lingering ownership after rollback");
+                }
+            });
+            Test("Busy item menu defers patching and can be retried", delegate
+            {
+                var f = new Fixture(); f.Memory.PatchBusy = true;
+                Reject(delegate { f.Session.SetItemLibraryEnabled(true); }); Assert(f.Memory.CodeWrites == 0, "busy enable skipped");
+                f.Memory.PatchBusy = false; f.Session.SetItemLibraryEnabled(true); f.Memory.PatchBusy = true;
+                Reject(delegate { f.Session.SetItemLibraryEnabled(false); }); Assert(f.Session.ItemLibraryEnabled, "busy restore remains owned");
+                f.Memory.PatchBusy = false; f.Session.SetItemLibraryEnabled(false); Assert(!f.Session.ItemLibraryEnabled, "retry succeeds");
+            });
+            Test("Library and appraisal restore independently on disconnect, including after a save change", delegate
+            {
+                var f = new Fixture(); f.Session.SetItemLibraryEnabled(true); f.Session.SetAppraisalVisible(true);
+                f.Memory.String(0x600000, "another-run"); f.Session.Dispose();
+                foreach (var c in ItemLibrary.Profile(Fixture.Base)) Assert(f.Memory.Read(c.Address, c.Before.Length).SequenceEqual(c.Before), "library restored");
+                Assert(f.Memory.Read(Fixture.Base + BuildProfile.AppraisalTooltipGate + 8, 1)[0] == 0x7E && String.IsNullOrEmpty(f.Session.CloseWarning), "appraisal restored");
+            });
+            Test("Foreign library conflict is preserved without preventing appraisal cleanup", delegate
+            {
+                var f = new Fixture(); f.Session.SetItemLibraryEnabled(true); f.Session.SetAppraisalVisible(true);
+                f.Memory.Put(Fixture.Base + BuildProfile.ItemMenuTail, new byte[] { 0x90 }); f.Session.Dispose();
+                Assert(f.Memory.Read(Fixture.Base + BuildProfile.ItemMenuTail, 1)[0] == 0x90 && !String.IsNullOrEmpty(f.Session.CloseWarning), "conflict reported");
+                Assert(f.Memory.Read(Fixture.Base + BuildProfile.AppraisalTooltipGate + 8, 1)[0] == 0x7E, "independent appraisal restoration");
+            });
+            Test("Game exit skips library writes and overlapping code changes are rejected", delegate
+            {
+                var f = new Fixture(); f.Session.SetItemLibraryEnabled(true); int writes = f.Memory.CodeWrites;
+                f.Memory.Alive = false; f.Session.Dispose(); Assert(f.Memory.CodeWrites == writes, "no writes after exit");
+                var m = new FakeMemory(); m.Put(0x10000, new byte[] { 1, 2, 3 });
+                Reject(delegate { m.ApplyCodeChanges(new[] { new CodeChange(0x10000, new byte[] { 1, 2 }, new byte[] { 3, 4 }), new CodeChange(0x10001, new byte[] { 2, 3 }, new byte[] { 4, 5 }) }, 0, 0); });
+                Assert(m.CodeWrites == 0, "overlap rejected before write");
+            });
+            Test("Native code transaction suspends and resumes an isolated helper, preserves RX protection", delegate
+            {
+                string folder = Path.Combine(Path.GetTempPath(), "ProbablyStolenPatchTest-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(folder); Process helper = null;
+                try
+                {
+                    helper = Process.Start(new ProcessStartInfo(System.Reflection.Assembly.GetExecutingAssembly().Location, "--patch-helper \"" + folder + "\"") { UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden });
+                    string ready = Path.Combine(folder, "ready.txt");
+                    for (int i = 0; i < 100 && !File.Exists(ready) && !helper.HasExited; i++) System.Threading.Thread.Sleep(20);
+                    Assert(File.Exists(ready) && !helper.HasExited, "helper started");
+                    long address = long.Parse(File.ReadAllText(ready), System.Globalization.CultureInfo.InvariantCulture);
+                    var changes = new[] { new CodeChange(address, new byte[] { 16, 17, 18, 19 }, new byte[] { 1, 2, 3, 4 }), new CodeChange(address + 8, new byte[] { 24, 25, 26, 27 }, new byte[] { 5, 6, 7, 8 }) };
+                    using (var memory = new ProcessMemory(helper.Id))
+                    {
+                        // Mark every user address busy to verify the real thread-context guard and finally-resume path.
+                        bool busy = false;
+                        try { memory.ApplyCodeChanges(changes, 0x10000, 0x0000800000000000L); }
+                        catch (IOException ex) { busy = ex.Message == L.T("物品菜单正在处理操作，请松开按键并稍后重试。"); }
+                        Assert(busy, "native instruction pointer guard rejects active code");
+                        Assert(memory.Read(address, 4).SequenceEqual(changes[0].Before), "busy rejection made no change");
+                        memory.ApplyCodeChanges(changes, 0, 0);
+                        Assert(changes.All(c => memory.Read(c.Address, c.After.Length).SequenceEqual(c.After)), "native patch");
+                        memory.ApplyCodeChanges(changes.Reverse().Select(c => c.Reverse()).ToArray(), 0, 0);
+                    }
+                    File.WriteAllText(Path.Combine(folder, "stop.txt"), "stop");
+                    Assert(helper.WaitForExit(3000) && helper.ExitCode == 0, "helper resumed; original bytes and RX protection restored");
+                }
+                finally
+                {
+                    if (helper != null) { if (!helper.HasExited) { helper.Kill(); helper.WaitForExit(3000); } helper.Dispose(); }
+                    foreach (string file in Directory.GetFiles(folder)) File.Delete(file); Directory.Delete(folder);
+                }
+            });
+            Test("Trainer refuses to suspend itself", delegate
+            {
+                using (var memory = new ProcessMemory(Process.GetCurrentProcess().Id))
+                    Reject(delegate { memory.ApplyCodeChanges(ItemLibrary.Profile(Fixture.Base), 0, 0); });
+            });
+            Test("Known Unity key codes map to readable item-menu shortcuts", delegate
+            {
+                Assert(ItemLibrary.KeyName(282) == "F1" && ItemLibrary.KeyName(291) == "F10" && ItemLibrary.KeyName(96) == "`" && ItemLibrary.KeyName(97) == "A", "key names");
+                Reject(delegate { ItemLibrary.KeyName(0); });
+            });
             Test("Loaded game with empty, whitespace or null run ID connects and edits correctly", delegate
             {
                 foreach (string runId in new string[] { "", "   ", null })
@@ -396,7 +560,7 @@ namespace ProbablyStolenTrainer
             {
                 string previous = L.Language;
                 var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
-                var fixture = new Fixture(); fixture.Session.Apply("cash", 777, null); fixture.Session.SetAppraisalVisible(true);
+                var fixture = new Fixture(); fixture.Session.Apply("cash", 777, null); fixture.Session.SetAppraisalVisible(true); fixture.Session.SetItemLibraryEnabled(true);
                 try
                 {
                     L.SetLanguage("zh-CN");
@@ -413,6 +577,9 @@ namespace ProbablyStolenTrainer
                         var toggle = (System.Windows.Forms.CheckBox)type.GetField("appraisal", flags).GetValue(form);
                         type.GetField("changingAppraisal", flags).SetValue(form, true); toggle.Checked = true;
                         type.GetField("changingAppraisal", flags).SetValue(form, false);
+                        var libraryToggle = (System.Windows.Forms.CheckBox)type.GetField("itemLibrary", flags).GetValue(form);
+                        type.GetField("changingItemLibrary", flags).SetValue(form, true); libraryToggle.Checked = true;
+                        type.GetField("changingItemLibrary", flags).SetValue(form, false);
                         amount.Value = 654321; factions.SelectedIndex = 2;
                         int writes = fixture.Memory.Writes, codeWrites = fixture.Memory.CodeWrites;
                         form.ChangeLanguage("en", false);
@@ -420,6 +587,8 @@ namespace ProbablyStolenTrainer
                         Assert(((System.Windows.Forms.Label)type.GetField("currentCash", flags).GetValue(form)).Text.Contains("777"), "value retained");
                         Assert(((System.Windows.Forms.Label)type.GetField("status", flags).GetValue(form)).Text.StartsWith("Connected"), "connection status translated");
                         Assert(amount.Value == 654321 && factions.SelectedIndex == 2 && toggle.Checked, "UI inputs and toggle retained");
+                        Assert(libraryToggle.Checked && fixture.Session.ItemLibraryEnabled && libraryToggle.Text == "Enable item library", "item library state and translation retained");
+                        Assert(((System.Windows.Forms.Label)type.GetField("itemMenuKey", flags).GetValue(form)).Text == "In-game key: F10", "actual item-menu shortcut translated");
                         Assert(fixture.Session.CanUndo && fixture.Session.AppraisalVisible && ReferenceEquals(type.GetField("session", flags).GetValue(form), fixture.Session), "session retained");
                         Assert(fixture.Memory.Writes == writes && fixture.Memory.CodeWrites == codeWrites, "language switch writes no game memory");
                         form.ChangeLanguage("zh-CN", false);
@@ -446,7 +615,7 @@ namespace ProbablyStolenTrainer
                 finally { L.SetLanguage(previous); }
             });
             results.Add("\nResult: " + (results.Count - failed) + " passed, " + failed + " failed.");
-            results.Add("Scope: synthetic IL2CPP layout + native memory API in test process. No real game session was modified or validated.");
+            results.Add("Scope: synthetic IL2CPP layout + native APIs in this test process and an isolated test helper. No real game session was modified or validated.");
             File.WriteAllLines(report, results, Encoding.UTF8); return failed == 0 ? 0 : 1;
         }
     }

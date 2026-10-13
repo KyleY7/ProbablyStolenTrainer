@@ -19,7 +19,10 @@ namespace ProbablyStolenTrainer
         readonly ComboBox language;
         readonly Button undo;
         readonly CheckBox appraisal;
+        readonly CheckBox itemLibrary;
+        readonly Label itemMenuKey;
         bool changingAppraisal;
+        bool changingItemLibrary;
         bool changingLanguage;
         readonly Panel editing;
         readonly TextBox log;
@@ -37,7 +40,7 @@ namespace ProbablyStolenTrainer
             Text = L.T("Probably Stolen · 金钱 / 时间 / 声望 / 鉴定");
             Font = new Font("Microsoft YaHei UI", 10F);
             BackColor = Color.FromArgb(17, 25, 38); ForeColor = ink;
-            ClientSize = new Size(860, 758); FormBorderStyle = FormBorderStyle.FixedSingle;
+            ClientSize = new Size(860, 806); FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false; StartPosition = FormStartPosition.CenterScreen;
             AutoScaleMode = AutoScaleMode.Dpi;
             Label title = LabelAt(this, "PROBABLY STOLEN", 28, 19, 550, 34);
@@ -86,15 +89,21 @@ namespace ProbablyStolenTrainer
             Controls.Add(appraisal); editable.Add(appraisal);
             appraisal.CheckedChanged += delegate { ToggleAppraisal(); };
             LabelAt(this, L.T("重新悬停物品，查看游戏内 TRUE VALUE"), 366, 510, 467, 30).ForeColor = muted;
-            LabelAt(this, L.T("修改前先暂停游戏。日期调整不会补跑剧情或结算；声望奖励由游戏后续刷新。"), 30, 545, 805, 27).ForeColor = muted;
-            ButtonAt(this, L.T("刷新当前数值"), 28, 579, 169, delegate { Run(delegate { RefreshValues(false); }); });
-            undo = ButtonAt(this, L.T("撤销上一次修改"), 208, 579, 199, delegate { Run(delegate { RequireSession(); Record(session.Undo()); RefreshValues(false); }); });
-            ButtonAt(this, L.T("备份存档…"), 418, 579, 166, delegate { Run(Backup); });
-            var topmost = new CheckBox { Text = L.T("窗口置顶"), Left = 697, Top = 584, Width = 131, Height = 31, ForeColor = ink };
+            itemLibrary = new CheckBox { Text = L.T("开启物品添加菜单"), Left = 30, Top = 550, Width = 328, Height = 30, ForeColor = accent };
+            Controls.Add(itemLibrary); editable.Add(itemLibrary);
+            itemLibrary.CheckedChanged += delegate { ToggleItemLibrary(); };
+            ButtonAt(this, L.T("添加到后仓：使用说明"), 366, 547, 250, ShowItemLibraryHelp);
+            itemMenuKey = LabelAt(this, L.T("游戏内按键：—"), 634, 550, 200, 30);
+            itemMenuKey.ForeColor = muted;
+            LabelAt(this, L.T("修改前先暂停游戏。日期调整不会补跑剧情或结算；声望奖励由游戏后续刷新。"), 30, 593, 805, 27).ForeColor = muted;
+            ButtonAt(this, L.T("刷新当前数值"), 28, 627, 169, delegate { Run(delegate { RefreshValues(false); }); });
+            undo = ButtonAt(this, L.T("撤销上一次修改"), 208, 627, 199, delegate { Run(delegate { RequireSession(); Record(session.Undo()); RefreshValues(false); }); });
+            ButtonAt(this, L.T("备份存档…"), 418, 627, 166, delegate { Run(Backup); });
+            var topmost = new CheckBox { Text = L.T("窗口置顶"), Left = 697, Top = 632, Width = 131, Height = 31, ForeColor = ink };
             topmost.CheckedChanged += delegate { TopMost = topmost.Checked; }; Controls.Add(topmost);
-            log = new TextBox { Left = 28, Top = 635, Width = 803, Height = 69, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, BackColor = Color.FromArgb(12, 19, 29), ForeColor = muted, BorderStyle = BorderStyle.FixedSingle };
+            log = new TextBox { Left = 28, Top = 683, Width = 803, Height = 69, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, BackColor = Color.FromArgb(12, 19, 29), ForeColor = muted, BorderStyle = BorderStyle.FixedSingle };
             Controls.Add(log);
-            LabelAt(this, L.T("适配 Demo · Steam 构建 25382790  |  v1.0.1  |  选择进程，自动识别路径"), 28, 717, 806, 25).ForeColor = muted;
+            LabelAt(this, L.T("适配 Demo · Steam 构建 25382790  |  v1.1.0  |  选择进程，自动识别路径"), 28, 765, 806, 25).ForeColor = muted;
             SetConnected(false);
             Log(L.T("就绪。点击“选择进程…”连接游戏，无需设置盘符。请在玩游戏的 Windows 内运行。"));
             timer = new Timer { Interval = 1200 };
@@ -108,7 +117,7 @@ namespace ProbablyStolenTrainer
             FormClosing += delegate
             {
                 timer.Stop(); string warning = Disconnect();
-                if (!String.IsNullOrEmpty(warning)) MessageBox.Show(this, warning, L.T("价值显示恢复提示"));
+                if (!String.IsNullOrEmpty(warning)) MessageBox.Show(this, warning, L.T("游戏功能恢复提示"));
             };
             FormClosed += delegate { timer.Dispose(); };
             language.SelectedIndexChanged += delegate
@@ -134,6 +143,7 @@ namespace ProbablyStolenTrainer
             L.Apply(this);
             SetStatus(statusKey);
             DrawValues();
+            DrawItemMenuKey();
         }
         void SetStatus(string key)
         {
@@ -172,6 +182,9 @@ namespace ProbablyStolenTrainer
             if (session != null) { session.Dispose(); warning = session.CloseWarning; }
             session = null; last = null; changingAppraisal = true;
             try { appraisal.Checked = false; } finally { changingAppraisal = false; }
+            changingItemLibrary = true;
+            try { itemLibrary.Checked = false; } finally { changingItemLibrary = false; }
+            DrawItemMenuKey();
             SetConnected(false);
             if (!String.IsNullOrEmpty(warning)) Log(warning);
             return warning;
@@ -187,6 +200,31 @@ namespace ProbablyStolenTrainer
             changingAppraisal = true;
             try { appraisal.Checked = session != null && session.AppraisalVisible; }
             finally { changingAppraisal = false; }
+        }
+        void ToggleItemLibrary()
+        {
+            if (changingItemLibrary) return;
+            Run(delegate
+            {
+                RequireSession(); session.SetItemLibraryEnabled(itemLibrary.Checked);
+                if (session.ItemLibraryEnabled)
+                    Log(L.F("物品菜单已开启。返回游戏按 {0}，从物品库拖到后仓空位；完成后先按同一键关闭菜单，再取消开关。", session.ItemMenuKey));
+                else Log(L.T("物品添加快捷键已恢复。已加入后仓的物品保留，由游戏正常保存。"));
+            });
+            changingItemLibrary = true;
+            try { itemLibrary.Checked = session != null && session.ItemLibraryEnabled; }
+            finally { changingItemLibrary = false; }
+            DrawItemMenuKey();
+        }
+        void DrawItemMenuKey()
+        {
+            if (itemMenuKey == null) return;
+            string key = preview ? "F10" : session == null || !session.ItemLibraryEnabled ? null : session.ItemMenuKey;
+            itemMenuKey.Text = key == null ? L.T("游戏内按键：—") : L.F("游戏内按键：{0}", key);
+        }
+        void ShowItemLibraryHelp()
+        {
+            MessageBox.Show(this, L.T("先备份存档并进入店铺。\n1. 连接游戏，勾选“开启物品添加菜单”。\n2. 返回游戏，按界面显示的快捷键打开物品库；首次打开可能需要稍等。\n3. 从游戏物品库把需要的物品拖到店铺后仓空位。物品库初始每种 10 个，实际取出数量与堆叠由游戏处理，可重复拖取。\n4. 先按同一快捷键关闭物品库，再取消开关。\n\n这不是输入物品 ID 后自动入库；物品要在游戏内选择和摆放。无法放下时先整理后仓。不要取用测试物、任务道具或不认识的内部物品。\n新增物品由游戏正常存档保存，不属于“撤销上一次修改”的范围。"), L.T("添加物品到后仓"), MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         void RequireSession() { if (session == null) throw new InvalidOperationException(L.T("请先连接游戏。")); }
         void Run(Action action)
@@ -309,6 +347,7 @@ namespace ProbablyStolenTrainer
             factions.Items.Add(new Faction { Id = "EXAMPLE", Display = L.T("示例势力"), Amount = 24.5 }); factions.SelectedIndex = 0;
             foreach (var control in editable) control.Enabled = true;
             changingAppraisal = true; appraisal.Checked = true; changingAppraisal = false;
+            changingItemLibrary = true; itemLibrary.Checked = true; changingItemLibrary = false;
             log.Text = L.T("界面测试使用示例值，未读取或修改真实游戏。");
             ApplyLanguage();
             ShowInTaskbar = false; StartPosition = FormStartPosition.Manual; Location = new Point(-20000, -20000);
@@ -321,6 +360,7 @@ namespace ProbablyStolenTrainer
     {
         [STAThread] static int Main(string[] args)
         {
+            if (args.Length == 2 && args[0] == "--patch-helper") return Tests.RunPatchHelper(args[1]);
             if (args.Length == 2 && args[0] == "--self-test") return Tests.Run(args[1]);
             if (args.Length == 2 && args[0] == "--verify-build")
             {

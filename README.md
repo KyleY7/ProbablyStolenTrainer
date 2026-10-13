@@ -1,24 +1,25 @@
-# Probably Stolen Trainer v1.0.1
+# Probably Stolen Trainer v1.1.0
 
 [简体中文](README.zh-CN.md) · **English** · [Changes / 更新记录](CHANGELOG.md)
 
-**v1.0.1 fixes an incorrect save-detection check. This local repair build still needs live-game confirmation; see [the changelog](CHANGELOG.md).
+**v1.1.0 adds access to the game's item library for placing items in the back-room inventory.** It also includes the save-detection fix from v1.0.1. This local build still needs live-game confirmation; see [the changelog](CHANGELOG.md).
 
 A portable Windows x64 trainer for **Probably Stolen Demo, Steam build 25382790**. Switch between Simplified Chinese and English without disconnecting. No Cheat Engine or mod loader is required.
 
 **Compatibility:** this release checks the SHA-256 of both game binaries before connecting. It supports the exact Demo build below; it does not claim compatibility with the full game or later updates.
 
-**Validation status:** 40 automated checks passed, including synthetic game objects, native Win32 memory operations inside the test process, and language switching. Both languages were rendered and checked. **Connection, edits, appraisal tooltips and save reloads have not yet been tested in a live game session.**
+**Validation status:** 52 automated checks passed, including synthetic game objects, native Win32 memory operations in isolated test processes, and language switching. Both languages were rendered and checked. **Connection, edits, item placement, appraisal tooltips and save reloads have not yet been tested in a live game session.**
 
 ![English interface using sample data](docs/images/preview-en.png)
 
 ## Quick start
 
-1. Extract the local repair package `ProbablyStolenTrainer-v1.0.1-win-x64.zip` and run `ProbablyStolenTrainer.exe` on Windows 10/11 with .NET Framework 4.8.
+1. Extract `ProbablyStolenTrainer-v1.1.0-win-x64.zip` and run `ProbablyStolenTrainer.exe` on Windows 10/11 with .NET Framework 4.8.
 2. Start the Demo through Steam and load a save into the shop. Run the trainer in the **same Windows system, user and privilege level** as the game.
 3. Use **Back up saves…** before editing. Pause the game, click **Select process…**, and select `Probably Stolen.exe`. Search by name, PID or path; refresh the list after starting the game. Double-clicking a row also connects.
 4. Check the displayed current values, enter a new value, and press the matching **Set** button.
 5. To reveal appraisal values, enable **Reveal appraisal value**, move the mouse away from the item, and hover again. The game's tooltip should include its native `TRUE VALUE : <number>` line.
+6. To add stock to the back room, enable the item menu and follow [the item-library instructions](#adding-items-to-the-back-room).
 
 Use the **简体中文 / English** selector at the top right to change language immediately. The choice is saved in `%LOCALAPPDATA%\ProbablyStolenTrainer\language.txt`. First launch follows the Windows UI language: Chinese for a Chinese UI, English otherwise. Game-provided faction names and the native `TRUE VALUE` line are unchanged. Previous log entries stay in the language in which they were created.
 
@@ -32,6 +33,7 @@ Use the **简体中文 / English** selector at the top right to change language 
 | Rent countdown | Days remaining from 0 to 9,999; rent amount is unchanged |
 | Reputation | One selected faction or all factions; -200 to 200, with two decimal places |
 | Appraisal value | Toggle the game's own true-value tooltip for supported appraisal items |
+| Back-room items | Open the native item library using the displayed game shortcut, then drag items into free warehouse space |
 | Undo | Undo the last successful numeric edit while the save, objects and edited values still match |
 | Save backup | ZIP the selected folder's on-disk `.es3` files into `backups` beside the trainer |
 | Languages | Chinese / English UI, process picker, application messages and errors; remembered preference |
@@ -50,6 +52,17 @@ The toggle uses the game's existing appraisal calculation (`AppraisalHelper.GetC
 The toggle starts off. It changes one verified branch-displacement byte in process memory; it does not enable global developer mode, edit item prices, submit an appraisal, modify game files or save the toggle to disk. Unchecking it, changing the connection or closing the trainer normally restores the original tooltip logic. Hover again to refresh an already open tooltip.
 
 If the trainer is forcibly terminated, the display change may remain until the game exits. Restart the game to restore it. If another tool changes the same code, restoration is refused rather than overwriting that tool's changes; the trainer reports this condition.
+
+## Adding items to the back room
+
+1. Back up the save, enter the shop and connect the trainer. Keep the back-room inventory visible with enough free space.
+2. Check **Enable item library**. The trainer reads and displays the shortcut configured in this game instance; the F10 shown in the screenshot is sample data.
+3. Return focus to the game and press that shortcut to open **Debug Item Library**. Drag the desired item into the back-room inventory using the game's normal placement controls.
+4. Press the same shortcut to close the library **before** disabling the toggle, disconnecting or closing the trainer. If you disabled it with the library still open, enable it again and use the shortcut to close it.
+
+This opens the game's existing library; it does not provide an item-ID or quantity input box. Native templates start with 10 units, and the game's drag, split and stack behavior determines the amount placed. Templates replenish, allowing repeated transfers. The library may contain internal or quest items; use familiar merchandise first. Added items follow normal game saving and are not removed by the numeric **Undo** button or by disabling the menu.
+
+The toggle validates the shop, library objects and two code signatures, then changes both code regions as one operation while briefly suspending the process. It restores the original code on disable or normal disconnect/exit. Other debug commands in this handler are skipped while enabled; global developer mode and game files are unchanged. If the menu is busy, release the keys and retry. Restoration does not automatically close an already visible library window.
 
 ## What edits do
 
@@ -88,7 +101,7 @@ Run in Windows PowerShell from the repository root:
 ./test.ps1
 ```
 
-The build uses the x64 .NET Framework C# compiler under `%WINDIR%\Microsoft.NET\Framework64\v4.0.30319`; no NuGet dependencies or separate .NET SDK are needed. `test.ps1` runs tests in a separate process and writes `test-results.txt`. Tests use synthetic game data and memory allocated in their own process; they do not attach to the game or alter saves. See [the test scope](docs/TESTING.md).
+The build uses the x64 .NET Framework C# compiler under `%WINDIR%\Microsoft.NET\Framework64\v4.0.30319`; no NuGet dependencies or separate .NET SDK are needed. `test.ps1` runs tests in a separate process and writes `test-results.txt`. Tests use synthetic game data and memory allocated in the test process and its own disposable helper; they do not attach to the game or alter saves. See [the test scope](docs/TESTING.md).
 
 Preview commands use sample data and do not connect to the game or persist a language override:
 

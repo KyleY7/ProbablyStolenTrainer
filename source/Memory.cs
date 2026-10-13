@@ -22,7 +22,7 @@ namespace ProbablyStolenTrainer
         void WriteCodeByte(long address, byte value);
     }
 
-    public sealed class ProcessMemory : ICodeMemory
+    public sealed partial class ProcessMemory : ITransactionalCodeMemory
     {
         [DllImport("kernel32.dll", SetLastError = true)]
         static extern IntPtr OpenProcess(uint access, bool inherit, int pid);
@@ -121,6 +121,12 @@ namespace ProbablyStolenTrainer
         public const long ReputationType = 0x25EBA70;
         public const long EntryType = 0x2607A80;
         public const long AppraisalTooltipGate = 0x88F9AC;
+        public const long DebugHandlerType = 0x25F94B0;
+        public const long GridInventoryType = 0x2611FB8;
+        public const long ScrollInventoryType = 0x2612070;
+        public const long PixelWindowType = 0x25CDC98;
+        public const long ItemMenuGate = 0x7B3F14;
+        public const long ItemMenuTail = 0x7B3F70;
         public static string Hash(string path)
         {
             using (var sha = SHA256.Create()) using (var file = File.OpenRead(path))
@@ -167,6 +173,8 @@ namespace ProbablyStolenTrainer
         public string GameDirectory { get; private set; }
         public string CloseWarning { get; private set; }
         AppraisalReveal appraisalReveal;
+        ItemLibrary itemLibrary;
+        public string ItemMenuKey { get; private set; }
         public Session(IMemory mem, long moduleBase) { memory = mem; module = moduleBase; }
         public static Session Attach(ProcessCandidate selected)
         {
@@ -337,6 +345,30 @@ namespace ProbablyStolenTrainer
         }
         public bool CanUndo { get { return undo != null; } }
         public bool AppraisalVisible { get { return appraisalReveal != null && appraisalReveal.Enabled; } }
+        public bool ItemLibraryEnabled { get { return itemLibrary != null && itemLibrary.Enabled; } }
+        public void SetItemLibraryEnabled(bool enabled)
+        {
+            if (enabled)
+            {
+                var snapshot = Refresh();
+                long inventory = Ptr(snapshot.Entry + 0x98);
+                if (Ptr(inventory) != Type(BuildProfile.GridInventoryType, "GameGridInventory")) throw new IOException(L.T("后仓物品栏尚未就绪，请进入店铺后重试。"));
+                long handler = Instance(BuildProfile.DebugHandlerType, "DebugHandler");
+                Ptr(handler + 0x10);
+                if (memory.Read(handler + 0x1D, 1)[0] != 1) throw new IOException(L.T("游戏物品菜单尚未初始化，请进入店铺后重试。"));
+                if (Ptr(Ptr(handler + 0x48)) != Type(BuildProfile.PixelWindowType, "PixelWindow") || Ptr(Ptr(handler + 0x50)) != Type(BuildProfile.ScrollInventoryType, "GameGridScrollableInventory"))
+                    throw new IOException(L.T("游戏物品菜单尚未初始化，请进入店铺后重试。"));
+                ItemMenuKey = ItemLibrary.KeyName(Int(handler + 0x20));
+            }
+            if (itemLibrary == null)
+            {
+                if (!enabled) return;
+                var code = memory as ITransactionalCodeMemory;
+                if (code == null) throw new NotSupportedException(L.T("当前连接不支持物品添加菜单。"));
+                itemLibrary = new ItemLibrary(code, module);
+            }
+            itemLibrary.SetEnabled(enabled);
+        }
         public void SetAppraisalVisible(bool visible)
         {
             if (visible) Refresh();
@@ -350,9 +382,12 @@ namespace ProbablyStolenTrainer
         }
         public void Dispose()
         {
+            var warnings = new List<string>();
+            try { if (itemLibrary != null) itemLibrary.SetEnabled(false); }
+            catch (Exception ex) { warnings.Add(L.T("物品菜单未能恢复，请重启游戏。") + ex.Message); }
             try { if (appraisalReveal != null) appraisalReveal.SetEnabled(false); }
-            catch (Exception ex) { CloseWarning = L.T("价值显示未能恢复。请重启游戏恢复原始提示。") + ex.Message; }
-            finally { memory.Dispose(); attached = null; undo = null; }
+            catch (Exception ex) { warnings.Add(L.T("价值显示未能恢复。请重启游戏恢复原始提示。") + ex.Message); }
+            finally { memory.Dispose(); attached = null; undo = null; CloseWarning = String.Join(Environment.NewLine, warnings); }
         }
     }
 }

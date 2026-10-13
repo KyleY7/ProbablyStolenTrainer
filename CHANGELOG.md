@@ -1,5 +1,27 @@
 # Changes / 更新记录
 
+## v1.1.0 — Back-room items / 后仓添加物品
+
+### 简体中文
+
+- 新增“开启物品添加菜单”开关，读取当前游戏实际快捷键，打开原生物品库并把物品拖到店铺后仓空位。
+- 使用游戏原生物品创建、数量、堆叠和放置逻辑；不提供额外的物品 ID 或数量输入框。添加结果由游戏正常保存，不属于数值撤销范围。
+- 开启期间跳过该按键处理器的其他调试命令，不开启全局开发模式。切换时核对代码、检查线程状态，并在写入失败时回退；正常关闭时恢复代码。需先用快捷键关闭物品库窗口，再关闭开关。
+- 补齐中英文标签、使用说明、日志、错误信息与新版界面截图。保留 v1.0.1 的存档识别修复。
+- 新增 12 项测试，共 52 项通过，包括独立辅助进程上的线程恢复、代码恢复与页面权限检查。静态核对支持版本的物品库路径；尚未完成真实游戏中的拖放和保存回读验证。
+
+本版本在本地 Git 记录并打包，未创建新的 GitHub Release，仓库继续保持私有。
+
+### English
+
+- Add an item-library toggle and read the actual game shortcut. Open the native library and drag items into free back-room inventory space.
+- Use native item creation, quantities, stacking and placement. There is no additional item-ID or quantity input box. Added items follow normal game saving and are outside numeric Undo.
+- Skip other debug commands in this key handler without enabling global developer mode. Validate code and thread state, roll back failed writes, and restore code on normal shutdown. Close the library using its shortcut before disabling the toggle.
+- Add bilingual controls, help, logs, errors and updated screenshots. Retain the v1.0.1 save-detection fix.
+- Add 12 tests, bringing the total to 52 passing checks, including thread resumption, code restoration and page permissions in a disposable helper process. Statically verify the supported game's item-library path; actual gameplay placement and save/reload still need confirmation.
+
+This version is recorded and packaged locally, with no new GitHub Release. The repository remains private.
+
 ## v1.0.1 — Save detection fix / 存档识别修复
 
 ### 简体中文
