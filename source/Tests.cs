@@ -662,6 +662,25 @@ namespace ProbablyStolenTrainer
                 }
                 finally { L.SetLanguage(previous); if (File.Exists(settings)) File.Delete(settings); if (Directory.Exists(folder)) Directory.Delete(folder); }
             });
+            Test("Compact v2 window keeps lower controls reachable through scrolling", delegate
+            {
+                using (var form = new TrainerForm())
+                {
+                    var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+                    ((System.Windows.Forms.Timer)typeof(TrainerForm).GetField("timer", flags).GetValue(form)).Stop();
+                    typeof(TrainerForm).GetField("renderingPreview", flags).SetValue(form, true);
+                    form.ShowInTaskbar = false; form.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
+                    form.Location = new System.Drawing.Point(-20000, -20000); form.Show(); System.Windows.Forms.Application.DoEvents();
+                    form.ClientSize = new System.Drawing.Size(820, 540); form.PerformLayout();
+                    Assert(form.AutoScroll && form.AutoScrollMinSize.Width > form.ClientSize.Width && form.AutoScrollMinSize.Height > form.ClientSize.Height, "content can exceed a small viewport");
+                    form.AutoScrollPosition = new System.Drawing.Point(220, 182); form.PerformLayout();
+                    Assert(form.AutoScrollPosition.X < 0 && form.AutoScrollPosition.Y < 0, "horizontal and vertical scrolling work");
+                    var log = (System.Windows.Forms.TextBox)typeof(TrainerForm).GetField("log", flags).GetValue(form);
+                    var logPosition = form.PointToClient(log.PointToScreen(System.Drawing.Point.Empty));
+                    Assert(logPosition.Y >= 0 && logPosition.Y + log.Height <= form.ClientSize.Height, "activity log is reachable");
+                    form.Close();
+                }
+            });
             Test("Live UI language change preserves connection, edits, selection and appraisal state", delegate
             {
                 string previous = L.Language;

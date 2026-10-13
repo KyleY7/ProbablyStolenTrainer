@@ -14,6 +14,12 @@ namespace ProbablyStolenTrainer
         public static readonly string SettingsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ProbablyStolenTrainer", "language.txt");
         static readonly Dictionary<string, string> english = new Dictionary<string, string>
         {
+            { "进入店铺后选择进程，当前数值会自动刷新。", "Enter the shop, then select the process. Current values refresh automatically." },
+            { "数值修改", "Edit values" },
+            { "游戏辅助", "Game tools" },
+            { "会话操作", "Session actions" },
+            { "适配 Demo · Steam 构建 25382790  |  v2.0.0", "Demo · Steam build 25382790  |  v2.0.0" },
+            { "仅供学习，欢迎大家反馈。", "For learning only. Feedback welcome." },
             { "无法读取对象：{0}。", "Cannot read object: {0}." },
             { "对象为空：{0}。请查看连接诊断日志。", "Object is null: {0}. See the connection diagnostic log." },
             { "对象指针无效：{0}。请查看连接诊断日志。", "Invalid object pointer: {0}. See the connection diagnostic log." },

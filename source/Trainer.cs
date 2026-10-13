@@ -27,83 +27,117 @@ namespace ProbablyStolenTrainer
         readonly Panel editing;
         readonly TextBox log;
         readonly Timer timer;
-        readonly Color ink = Color.FromArgb(225, 232, 244);
-        readonly Color muted = Color.FromArgb(159, 174, 197);
-        readonly Color card = Color.FromArgb(29, 40, 56);
-        readonly Color accent = Color.FromArgb(45, 189, 168);
+        readonly Color ink = UITheme.Ink;
+        readonly Color muted = UITheme.Muted;
+        readonly Color accent = UITheme.Accent;
         readonly List<Control> editable = new List<Control>();
         Snapshot last;
         string statusKey = "未连接  ·  先启动游戏并读入存档";
         bool preview;
+        bool renderingPreview;
+        protected override bool ShowWithoutActivation { get { return renderingPreview; } }
         public TrainerForm()
         {
             Text = L.T("Probably Stolen · 金钱 / 时间 / 声望 / 鉴定");
-            Font = new Font("Microsoft YaHei UI", 10F);
-            BackColor = Color.FromArgb(17, 25, 38); ForeColor = ink;
-            ClientSize = new Size(860, 806); FormBorderStyle = FormBorderStyle.FixedSingle;
-            MaximizeBox = false; StartPosition = FormStartPosition.CenterScreen;
+            Font = UITheme.Body(10F);
+            BackColor = UITheme.Paper; ForeColor = ink;
+            AutoScaleDimensions = new SizeF(96F, 96F);
+            ClientSize = new Size(1040, 722); FormBorderStyle = FormBorderStyle.Sizable;
+            MinimumSize = new Size(820, 540); StartPosition = FormStartPosition.CenterScreen;
             AutoScaleMode = AutoScaleMode.Dpi;
-            Label title = LabelAt(this, "PROBABLY STOLEN", 28, 19, 550, 34);
-            title.Font = new Font("Segoe UI", 21F, FontStyle.Bold);
-            language = new ComboBox { Left = 652, Top = 25, Width = 178, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, AccessibleName = "Language / 语言" };
+            AutoScroll = true; AutoScrollMinSize = new Size(1040, 722);
+            Label prompt = LabelAt(this, ">_", 28, 18, 52, 38);
+            prompt.Font = UITheme.Mono(23F, FontStyle.Bold); prompt.ForeColor = accent;
+            Label title = LabelAt(this, "probably stolen", 85, 16, 505, 42);
+            title.Font = UITheme.Mono(25F, FontStyle.Bold);
+            Label edition = LabelAt(this, "TRAINER / v2.0.0", 595, 22, 217, 30);
+            edition.Font = UITheme.Mono(10F); edition.ForeColor = muted;
+            language = new ComboBox { Left = 832, Top = 26, Width = 178, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = UITheme.Surface, ForeColor = ink, AccessibleName = "Language / 语言" };
             language.Items.AddRange(new object[] { "简体中文", "English" });
             language.SelectedIndex = L.Language == "en" ? 1 : 0;
             Controls.Add(language);
-            LabelAt(this, L.T("试玩版修改器  /  金钱 · 时间 · 势力声望 · 鉴定价值"), 30, 59, 700, 28).ForeColor = muted;
-            status = LabelAt(this, L.T("未连接  ·  先启动游戏并读入存档"), 30, 97, 535, 30);
+            LabelAt(this, L.T("试玩版修改器  /  金钱 · 时间 · 势力声望 · 鉴定价值"), 30, 60, 920, 24).ForeColor = muted;
+            var connection = new OutlinePanel { Left = 28, Top = 96, Width = 984, Height = 66 };
+            Controls.Add(connection);
+            status = LabelAt(connection, L.T("未连接  ·  先启动游戏并读入存档"), 18, 8, 710, 25);
             status.ForeColor = accent;
-            ButtonAt(this, L.T("选择进程…"), 652, 92, 178, delegate { ConnectGame(); });
+            LabelAt(connection, L.T("进入店铺后选择进程，当前数值会自动刷新。"), 18, 35, 710, 22).ForeColor = muted;
+            ((TerminalButton)ButtonAt(connection, L.T("选择进程…"), 750, 14, 214, delegate { ConnectGame(); })).Primary = true;
 
-            editing = new Panel { Left = 24, Top = 141, Width = 812, Height = 362, BackColor = card };
+            editing = new OutlinePanel { Left = 28, Top = 178, Width = 616, Height = 214 };
             Controls.Add(editing);
-            LabelAt(editing, L.T("金钱"), 20, 17, 100, 30).Font = new Font(Font, FontStyle.Bold);
-            currentCash = LabelAt(editing, L.T("当前：—"), 139, 17, 240, 30);
-            cash = Number(editing, 389, 17, 0, 999999999, 100000, 0);
-            editable.Add(ButtonAt(editing, L.T("设置金钱"), 609, 15, 176, delegate { Apply("cash", cash.Value, null); }));
+            SectionTitle(editing, "/values", L.T("数值修改"));
+            LabelAt(editing, L.T("金钱"), 18, 53, 106, 28);
+            currentCash = LabelAt(editing, L.T("当前：—"), 127, 53, 202, 28);
+            currentCash.ForeColor = muted;
+            cash = Number(editing, 340, 51, 0, 999999999, 100000, 0);
+            editable.Add(ButtonAt(editing, L.T("设置金钱"), 480, 49, 118, delegate { Apply("cash", cash.Value, null); }));
 
-            LabelAt(editing, L.T("天数"), 20, 75, 100, 30).Font = new Font(Font, FontStyle.Bold);
-            currentDay = LabelAt(editing, L.T("当前：—"), 139, 75, 240, 30);
-            day = Number(editing, 389, 75, 0, 99999, 1, 0);
-            editable.Add(ButtonAt(editing, L.T("设置天数"), 609, 73, 176, delegate { Apply("day", day.Value, null); }));
+            LabelAt(editing, L.T("天数"), 18, 105, 106, 28);
+            currentDay = LabelAt(editing, L.T("当前：—"), 127, 105, 202, 28);
+            currentDay.ForeColor = muted;
+            day = Number(editing, 340, 103, 0, 99999, 1, 0);
+            editable.Add(ButtonAt(editing, L.T("设置天数"), 480, 101, 118, delegate { Apply("day", day.Value, null); }));
 
-            LabelAt(editing, L.T("租金倒计时"), 20, 133, 117, 30).Font = new Font(Font, FontStyle.Bold);
-            currentRent = LabelAt(editing, L.T("当前：—"), 139, 133, 240, 30);
-            rent = Number(editing, 389, 133, 0, 9999, 30, 0);
-            editable.Add(ButtonAt(editing, L.T("设置剩余天数"), 609, 131, 176, delegate { Apply("rent", rent.Value, null); }));
+            LabelAt(editing, L.T("租金倒计时"), 18, 157, 106, 28);
+            currentRent = LabelAt(editing, L.T("当前：—"), 127, 157, 202, 28);
+            currentRent.ForeColor = muted;
+            rent = Number(editing, 340, 155, 0, 9999, 30, 0);
+            editable.Add(ButtonAt(editing, L.T("设置剩余天数"), 480, 153, 118, delegate { Apply("rent", rent.Value, null); }));
 
-            LabelAt(editing, L.T("势力声望"), 20, 201, 130, 30).Font = new Font(Font, FontStyle.Bold);
-            factions = new ComboBox { Left = 139, Top = 201, Width = 443, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat };
-            editing.Controls.Add(factions); editable.Add(factions);
+            var factionPanel = new OutlinePanel { Left = 28, Top = 408, Width = 616, Height = 140 };
+            Controls.Add(factionPanel); SectionTitle(factionPanel, "/reputation", L.T("势力声望"));
+            factions = new ComboBox { Left = 18, Top = 49, Width = 302, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = UITheme.Paper, ForeColor = ink };
+            factionPanel.Controls.Add(factions); editable.Add(factions);
             factions.SelectedIndexChanged += delegate { ShowFaction(); };
-            currentFaction = LabelAt(editing, L.T("当前：—"), 20, 251, 358, 30);
-            reputation = Number(editing, 389, 251, -200, 200, 100, 2);
-            editable.Add(ButtonAt(editing, L.T("设置选中势力"), 609, 249, 176, delegate
+            currentFaction = LabelAt(factionPanel, L.T("当前：—"), 18, 86, 315, 27);
+            reputation = Number(factionPanel, 340, 49, -200, 200, 100, 2);
+            editable.Add(ButtonAt(factionPanel, L.T("设置选中势力"), 480, 47, 118, delegate
             {
                 var selected = factions.SelectedItem as Faction;
                 if (selected != null) Apply("reputation", reputation.Value, selected.Id);
             }));
-            LabelAt(editing, L.T("声望范围：-200 ～ 200"), 20, 310, 320, 30).ForeColor = muted;
-            editable.Add(ButtonAt(editing, L.T("全部势力设为输入值"), 540, 304, 245, delegate { Apply("reputation", reputation.Value, null); }));
+            var repRange = LabelAt(factionPanel, L.T("声望范围：-200 ～ 200"), 18, 112, 316, 20);
+            repRange.ForeColor = muted; repRange.Font = UITheme.Body(9F);
+            editable.Add(ButtonAt(factionPanel, L.T("全部势力设为输入值"), 340, 92, 258, delegate { Apply("reputation", reputation.Value, null); }));
 
-            appraisal = new CheckBox { Text = L.T("直接显示鉴定物真实价值"), Left = 30, Top = 510, Width = 328, Height = 30, ForeColor = accent };
-            Controls.Add(appraisal); editable.Add(appraisal);
+            var tools = new OutlinePanel { Left = 660, Top = 178, Width = 352, Height = 214 };
+            Controls.Add(tools); SectionTitle(tools, "/tools", L.T("游戏辅助"));
+            appraisal = new TerminalToggle { Text = L.T("直接显示鉴定物真实价值"), Left = 18, Top = 49, Width = 316, Height = 27 };
+            tools.Controls.Add(appraisal); editable.Add(appraisal);
             appraisal.CheckedChanged += delegate { ToggleAppraisal(); };
-            LabelAt(this, L.T("重新悬停物品，查看游戏内 TRUE VALUE"), 366, 510, 467, 30).ForeColor = muted;
-            itemLibrary = new CheckBox { Text = L.T("开启物品添加菜单"), Left = 30, Top = 550, Width = 328, Height = 30, ForeColor = accent };
-            Controls.Add(itemLibrary); editable.Add(itemLibrary);
+            var appraisalHint = LabelAt(tools, L.T("重新悬停物品，查看游戏内 TRUE VALUE"), 18, 80, 316, 28);
+            appraisalHint.ForeColor = muted; appraisalHint.Font = UITheme.Body(9F);
+            itemLibrary = new TerminalToggle { Text = L.T("开启物品添加菜单"), Left = 18, Top = 117, Width = 316, Height = 27 };
+            tools.Controls.Add(itemLibrary); editable.Add(itemLibrary);
             itemLibrary.CheckedChanged += delegate { ToggleItemLibrary(); };
-            ButtonAt(this, L.T("添加到后仓：使用说明"), 366, 547, 250, ShowItemLibraryHelp);
-            itemMenuKey = LabelAt(this, L.T("游戏内按键：—"), 634, 550, 200, 30);
-            itemMenuKey.ForeColor = muted;
-            LabelAt(this, L.T("修改前先暂停游戏。日期调整不会补跑剧情或结算；声望奖励由游戏后续刷新。"), 30, 593, 805, 27).ForeColor = muted;
-            ButtonAt(this, L.T("刷新当前数值"), 28, 627, 169, delegate { Run(delegate { RefreshValues(false); }); });
-            undo = ButtonAt(this, L.T("撤销上一次修改"), 208, 627, 199, delegate { Run(delegate { RequireSession(); Record(session.Undo()); RefreshValues(false); }); });
-            ButtonAt(this, L.T("备份存档…"), 418, 627, 166, delegate { Run(Backup); });
-            var topmost = new CheckBox { Text = L.T("窗口置顶"), Left = 697, Top = 632, Width = 131, Height = 31, ForeColor = ink };
-            topmost.CheckedChanged += delegate { TopMost = topmost.Checked; }; Controls.Add(topmost);
-            log = new TextBox { Left = 28, Top = 683, Width = 803, Height = 69, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, BackColor = Color.FromArgb(12, 19, 29), ForeColor = muted, BorderStyle = BorderStyle.FixedSingle };
-            Controls.Add(log);
-            LabelAt(this, L.T("适配 Demo · Steam 构建 25382790  |  v1.1.2  |  选择进程，自动识别路径"), 28, 765, 806, 25).ForeColor = muted;
+            ButtonAt(tools, L.T("添加到后仓：使用说明"), 18, 162, 181, ShowItemLibraryHelp);
+            itemMenuKey = LabelAt(tools, L.T("游戏内按键：—"), 208, 163, 126, 32);
+            itemMenuKey.ForeColor = accent; itemMenuKey.Font = UITheme.Body(9F);
+            var actions = new OutlinePanel { Left = 660, Top = 408, Width = 352, Height = 140 };
+            Controls.Add(actions); SectionTitle(actions, "/session", L.T("会话操作"));
+            ButtonAt(actions, L.T("刷新当前数值"), 18, 48, 151, delegate { Run(delegate { RefreshValues(false); }); });
+            undo = ButtonAt(actions, L.T("撤销上一次修改"), 182, 48, 152, delegate { Run(delegate { RequireSession(); Record(session.Undo()); RefreshValues(false); }); });
+            ButtonAt(actions, L.T("备份存档…"), 18, 93, 178, delegate { Run(Backup); });
+            var topmost = new TerminalToggle { Text = L.T("窗口置顶"), Left = 208, Top = 97, Width = 126, Height = 28, Font = UITheme.Body(9F) };
+            topmost.CheckedChanged += delegate { TopMost = topmost.Checked; }; actions.Controls.Add(topmost);
+            var caution = LabelAt(this, L.T("修改前先暂停游戏。日期调整不会补跑剧情或结算；声望奖励由游戏后续刷新。"), 30, 562, 982, 25);
+            caution.ForeColor = muted; caution.Font = UITheme.Body(9F);
+            var activity = new OutlinePanel { Left = 28, Top = 600, Width = 984, Height = 72, BackColor = UITheme.Soft };
+            Controls.Add(activity);
+            var activityTitle = LabelAt(activity, "/activity", 16, 12, 114, 25);
+            activityTitle.Font = UITheme.Mono(10F); activityTitle.ForeColor = muted;
+            log = new TextBox { Left = 140, Top = 12, Width = 826, Height = 48, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, BackColor = UITheme.Soft, ForeColor = muted, BorderStyle = BorderStyle.None, Font = UITheme.Mono(9F) };
+            activity.Controls.Add(log);
+            var footer = LabelAt(this, L.T("适配 Demo · Steam 构建 25382790  |  v2.0.0"), 30, 687, 641, 24);
+            footer.ForeColor = muted; footer.Font = UITheme.Mono(9F);
+            var learning = LabelAt(this, L.T("仅供学习，欢迎大家反馈。"), 680, 687, 330, 24);
+            learning.TextAlign = ContentAlignment.MiddleRight; learning.ForeColor = muted; learning.Font = UITheme.Body(9F);
+            Shown += delegate
+            {
+                if (renderingPreview) return;
+                UITheme.FitToWorkingArea(this);
+            };
             SetConnected(false);
             Log(L.T("就绪。点击“选择进程…”连接游戏，无需设置盘符。请在玩游戏的 Windows 内运行。"));
             timer = new Timer { Interval = 1200 };
@@ -165,13 +199,19 @@ namespace ProbablyStolenTrainer
         }
         Button ButtonAt(Control parent, string text, int x, int y, int width, Action action)
         {
-            var button = new Button { Text = text, Left = x, Top = y, Width = width, Height = 37, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(41, 65, 79), ForeColor = ink, Cursor = Cursors.Hand };
-            button.FlatAppearance.BorderColor = Color.FromArgb(62, 103, 111);
+            var button = new TerminalButton { Text = text, Left = x, Top = y, Width = width, Height = 36 };
             button.Click += delegate { action(); }; parent.Controls.Add(button); return button;
+        }
+        void SectionTitle(Control parent, string command, string caption)
+        {
+            var label = LabelAt(parent, command, 18, 12, 135, 24);
+            label.Font = UITheme.Mono(11F); label.ForeColor = accent;
+            var hint = LabelAt(parent, caption, 164, 12, parent.Width - 182, 24);
+            hint.Font = UITheme.Body(9F); hint.ForeColor = muted;
         }
         NumericUpDown Number(Control parent, int x, int y, decimal min, decimal max, decimal value, int decimals)
         {
-            var number = new NumericUpDown { Left = x, Top = y, Width = 193, Height = 34, Minimum = min, Maximum = max, Value = value, DecimalPlaces = decimals, ThousandsSeparator = true, BackColor = Color.FromArgb(15, 24, 37), ForeColor = ink };
+            var number = new NumericUpDown { Left = x, Top = y, Width = 124, Height = 32, Minimum = min, Maximum = max, Value = value, DecimalPlaces = decimals, ThousandsSeparator = true, BackColor = UITheme.Paper, ForeColor = ink, Font = UITheme.Mono(10F), BorderStyle = BorderStyle.FixedSingle };
             parent.Controls.Add(number); editable.Add(number); return number;
         }
         void Log(string text) { log.AppendText(DateTime.Now.ToString("HH:mm:ss") + "  " + text + Environment.NewLine); }
@@ -338,17 +378,20 @@ namespace ProbablyStolenTrainer
                 MessageBox.Show(this, L.T("备份已保存：\n") + archive, L.T("备份完成"));
             }
         }
-        public void RenderPreview(string path)
+        public void RenderPreview(string path, bool connected = true)
         {
             timer.Stop();
-            preview = true;
-            SetStatus("界面预览 · 示例数据，未连接游戏");
-            last = new Snapshot { Cash = 12450, Day = 18, RentDays = 3, RentValue = 210 };
-            factions.Items.Add(new Faction { Id = "EXAMPLE", Display = L.T("示例势力"), Amount = 24.5 }); factions.SelectedIndex = 0;
-            foreach (var control in editable) control.Enabled = true;
-            changingAppraisal = true; appraisal.Checked = true; changingAppraisal = false;
-            changingItemLibrary = true; itemLibrary.Checked = true; changingItemLibrary = false;
-            log.Text = L.T("界面测试使用示例值，未读取或修改真实游戏。");
+            renderingPreview = true; preview = connected;
+            if (connected)
+            {
+                SetStatus("界面预览 · 示例数据，未连接游戏");
+                last = new Snapshot { Cash = 12450, Day = 18, RentDays = 3, RentValue = 210 };
+                factions.Items.Add(new Faction { Id = "EXAMPLE", Display = L.T("示例势力"), Amount = 24.5 }); factions.SelectedIndex = 0;
+                foreach (var control in editable) control.Enabled = true;
+                changingAppraisal = true; appraisal.Checked = true; changingAppraisal = false;
+                changingItemLibrary = true; itemLibrary.Checked = true; changingItemLibrary = false;
+                log.Text = L.T("界面测试使用示例值，未读取或修改真实游戏。");
+            }
             ApplyLanguage();
             ShowInTaskbar = false; StartPosition = FormStartPosition.Manual; Location = new Point(-20000, -20000);
             Show(); Application.DoEvents(); PerformLayout();
@@ -382,6 +425,7 @@ namespace ProbablyStolenTrainer
             using (var form = new TrainerForm())
             {
                 if (args.Length == 2 && args[0] == "--render-preview") { form.RenderPreview(args[1]); return 0; }
+                if (args.Length == 2 && args[0] == "--render-idle") { form.RenderPreview(args[1], false); return 0; }
                 Application.Run(form);
             }
             return 0;

@@ -1,22 +1,22 @@
-# Probably Stolen Trainer v1.1.2
+# Probably Stolen Trainer v2.0.0
 
 [简体中文](README.zh-CN.md) · **English** · [Changes / 更新记录](CHANGELOG.md)
 
-**v1.1.2 fixes the reputation-type lookup that caused the reported connection failure.** It validates the class of loaded reputation objects instead of treating an unresolved type token as a pointer. Automatic diagnostics and the existing item library are included; see [the changelog](CHANGELOG.md).
+**v2.0.0 introduces a warm, terminal-inspired UI with a Claude Code-like feel.** The main window and process picker use paper colors, terracotta accents and monospace headings. The resizable main window scrolls when space is limited. Existing game features and the v1.1.2 connection fix are retained; see [the changelog](CHANGELOG.md).
 
 A portable Windows x64 trainer for **Probably Stolen Demo, Steam build 25382790**. Switch between Simplified Chinese and English without disconnecting. No Cheat Engine or mod loader is required.
 
 **Compatibility:** this release checks the SHA-256 of both game binaries before connecting. It supports the exact Demo build below; it does not claim compatibility with the full game or later updates.
 
-**Validation status:** 60 automated checks passed, including a reproduction of the original failure using the token from live-game logs, synthetic game objects, connection diagnostics, native Win32 memory operations in isolated test processes, and language switching. Both languages were rendered and checked. **The user has confirmed v1.1.2 works in the game; independent checks of every feature and save/reload behavior are not complete.**
+**Validation status:** 61 automated checks passed, including the original connection-failure regression, synthetic game objects, connection diagnostics, native Win32 memory operations, language switching and scrolling in a smaller window. Both languages and the disconnected state were rendered and checked. **The user confirmed v1.1.2 worked in the game. The v2.0.0 UI and all features have not yet received complete independent live-game or exhaustive high-DPI validation.**
 
-**Provided for learning purposes only. Feedback is welcome.** See the [v1.1.2 release notes](docs/releases/v1.1.2.md) and send issues or suggestions through [GitHub Issues](https://github.com/KyleY7/probably-stolen-trainer/issues).
+**Provided for learning purposes only. Feedback is welcome.** See the [v2.0.0 release notes](docs/releases/v2.0.0.md) and send issues or suggestions through [GitHub Issues](https://github.com/KyleY7/probably-stolen-trainer/issues).
 
 ![English interface using sample data](docs/images/preview-en.png)
 
 ## Quick start
 
-1. Download [v1.1.2](https://github.com/KyleY7/probably-stolen-trainer/releases/tag/v1.1.2), extract `ProbablyStolenTrainer-v1.1.2-win-x64.zip`, and run `ProbablyStolenTrainer.exe` on Windows 10/11 with .NET Framework 4.8.
+1. Download [v2.0.0](https://github.com/KyleY7/probably-stolen-trainer/releases/tag/v2.0.0), extract `ProbablyStolenTrainer-v2.0.0-win-x64.zip`, and run `ProbablyStolenTrainer.exe` on Windows 10/11 with .NET Framework 4.8. Close any older trainer first.
 2. Start the Demo through Steam and load a save into the shop. Run the trainer in the **same Windows system, user and privilege level** as the game.
 3. Use **Back up saves…** before editing. Pause the game, click **Select process…**, and select `Probably Stolen.exe`. Search by name, PID or path; refresh the list after starting the game. Double-clicking a row also connects.
 4. Check the displayed current values, enter a new value, and press the matching **Set** button.

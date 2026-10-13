@@ -51,28 +51,57 @@ namespace ProbablyStolenTrainer
         readonly Label count;
         readonly Button connect;
         List<ProcessCandidate> processes = new List<ProcessCandidate>();
+        bool renderingPreview;
+        protected override bool ShowWithoutActivation { get { return renderingPreview; } }
         public ProcessCandidate SelectedProcess { get; private set; }
 
         public ProcessPicker(bool preview = false)
         {
-            Text = L.T("选择游戏进程"); Font = new Font("Microsoft YaHei UI", 10F);
-            ClientSize = new Size(920, 552); FormBorderStyle = FormBorderStyle.FixedDialog;
+            Text = L.T("选择游戏进程"); Font = UITheme.Body(10F);
+            ClientSize = new Size(920, 558); FormBorderStyle = FormBorderStyle.Sizable;
+            MinimumSize = new Size(680, 440); AutoScroll = true; AutoScrollMinSize = new Size(920, 558);
             StartPosition = FormStartPosition.CenterParent; MinimizeBox = false; MaximizeBox = false;
-            AutoScaleMode = AutoScaleMode.Dpi;
-            BackColor = Color.FromArgb(17, 25, 38); ForeColor = Color.FromArgb(225, 232, 244);
-            Controls.Add(new Label { Text = L.T("搜索名称 / PID / 路径"), Left = 18, Top = 20, Width = 190, Height = 28 });
-            search = new TextBox { Left = 209, Top = 17, Width = 519, Text = "Probably" };
-            Controls.Add(search);
-            var refresh = MakeButton(L.T("刷新列表"), 744, 14, 158); refresh.Click += delegate { Reload(); };
-            list = new ListView { Left = 18, Top = 66, Width = 884, Height = 324, View = View.Details, FullRowSelect = true, MultiSelect = false, HideSelection = false, BackColor = Color.FromArgb(29, 40, 56), ForeColor = ForeColor };
-            list.Columns.Add(L.T("进程名"), 222); list.Columns.Add("PID", 88); list.Columns.Add(L.T("程序路径"), 545);
-            Controls.Add(list);
-            details = new TextBox { Left = 18, Top = 407, Width = 884, Height = 52, Multiline = true, ReadOnly = true, BackColor = Color.FromArgb(12, 19, 29), ForeColor = ForeColor, BorderStyle = BorderStyle.FixedSingle };
-            Controls.Add(details);
-            count = new Label { Left = 18, Top = 472, Width = 593, Height = 64, Text = L.T("正在读取进程…") }; Controls.Add(count);
-            connect = MakeButton(L.T("连接选中进程"), 621, 490, 170); connect.Enabled = false;
+            AutoScaleDimensions = new SizeF(96F, 96F); AutoScaleMode = AutoScaleMode.Dpi;
+            BackColor = UITheme.Paper; ForeColor = UITheme.Ink;
+            Shown += delegate { if (!renderingPreview) UITheme.FitToWorkingArea(this); };
+            Controls.Add(new Label { Text = "> " + L.T("选择游戏进程"), Left = 24, Top = 24, Width = 850, Height = 35, Font = UITheme.Mono(18F, FontStyle.Bold), ForeColor = UITheme.Ink });
+            Controls.Add(new Label { Text = L.T("请选择游戏进程。双击一行也可以连接。"), Left = 27, Top = 65, Width = 847, Height = 25, Font = UITheme.Body(9.5F), ForeColor = UITheme.Muted });
+            Controls.Add(new Label { Text = L.T("搜索名称 / PID / 路径"), Left = 25, Top = 103, Width = 195, Height = 26, ForeColor = UITheme.Muted });
+            var searchFrame = new OutlinePanel { Left = 229, Top = 97, Width = 475, Height = 38, BackColor = UITheme.Surface };
+            search = new TextBox { Left = 12, Top = 7, Width = 451, Text = "Probably", BorderStyle = BorderStyle.None, BackColor = UITheme.Surface, ForeColor = UITheme.Ink, Font = UITheme.Mono(11F) };
+            searchFrame.Controls.Add(search); Controls.Add(searchFrame);
+            var refresh = MakeButton(L.T("刷新列表"), 720, 96, 176); refresh.Click += delegate { Reload(); };
+            var listFrame = new OutlinePanel { Left = 24, Top = 151, Width = 872, Height = 245, Padding = new Padding(1), BackColor = UITheme.Surface };
+            list = new ListView { Dock = DockStyle.Fill, View = View.Details, FullRowSelect = true, MultiSelect = false, HideSelection = false, BackColor = UITheme.Surface, ForeColor = UITheme.Ink, BorderStyle = BorderStyle.None, OwnerDraw = true, Font = UITheme.Body(10F) };
+            list.Columns.Add(L.T("进程名"), 216); list.Columns.Add("PID", 85); list.Columns.Add(L.T("程序路径"), 542);
+            var rowSpacing = new ImageList { ImageSize = new Size(1, 33) };
+            list.SmallImageList = rowSpacing;
+            FormClosed += delegate { rowSpacing.Dispose(); };
+            list.DrawColumnHeader += delegate(object sender, DrawListViewColumnHeaderEventArgs e)
+            {
+                using (var brush = new SolidBrush(UITheme.Soft)) e.Graphics.FillRectangle(brush, e.Bounds);
+                using (var pen = new Pen(UITheme.Border)) e.Graphics.DrawLine(pen, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
+                var bounds = new Rectangle(e.Bounds.Left + 12, e.Bounds.Top, e.Bounds.Width - 18, e.Bounds.Height);
+                TextRenderer.DrawText(e.Graphics, e.Header.Text, list.Font, bounds, UITheme.Muted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
+            };
+            list.DrawSubItem += delegate(object sender, DrawListViewSubItemEventArgs e)
+            {
+                var background = e.Item.Selected ? UITheme.Soft : UITheme.Surface;
+                using (var brush = new SolidBrush(background)) e.Graphics.FillRectangle(brush, e.Bounds);
+                if (e.Item.Selected && e.ColumnIndex == 0)
+                    using (var brush = new SolidBrush(UITheme.Accent)) e.Graphics.FillRectangle(brush, new Rectangle(e.Bounds.Left, e.Bounds.Top, 3, e.Bounds.Height));
+                using (var pen = new Pen(UITheme.Border)) e.Graphics.DrawLine(pen, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
+                var bounds = new Rectangle(e.Bounds.Left + 12, e.Bounds.Top, e.Bounds.Width - 18, e.Bounds.Height);
+                TextRenderer.DrawText(e.Graphics, e.SubItem.Text, list.Font, bounds, UITheme.Ink, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix);
+            };
+            listFrame.Controls.Add(list); Controls.Add(listFrame);
+            var detailsFrame = new OutlinePanel { Left = 24, Top = 412, Width = 872, Height = 60, BackColor = UITheme.Soft };
+            details = new TextBox { Left = 12, Top = 9, Width = 848, Height = 43, Multiline = true, ReadOnly = true, BackColor = UITheme.Soft, ForeColor = UITheme.Muted, BorderStyle = BorderStyle.None, Font = UITheme.Mono(9.5F) };
+            detailsFrame.Controls.Add(details); Controls.Add(detailsFrame);
+            count = new Label { Left = 24, Top = 492, Width = 574, Height = 53, Text = L.T("正在读取进程…"), ForeColor = UITheme.Muted, Font = UITheme.Body(9F) }; Controls.Add(count);
+            connect = MakeButton(L.T("连接选中进程"), 610, 494, 180); ((TerminalButton)connect).Primary = true; connect.Enabled = false;
             connect.Click += delegate { Choose(); };
-            var cancel = MakeButton(L.T("取消"), 802, 490, 100); cancel.DialogResult = DialogResult.Cancel;
+            var cancel = MakeButton(L.T("取消"), 802, 494, 94); cancel.DialogResult = DialogResult.Cancel;
             CancelButton = cancel; AcceptButton = connect;
             search.TextChanged += delegate { Populate(); };
             list.SelectedIndexChanged += delegate
@@ -90,8 +119,8 @@ namespace ProbablyStolenTrainer
         }
         Button MakeButton(string text, int x, int y, int width)
         {
-            var button = new Button { Text = text, Left = x, Top = y, Width = width, Height = 38, BackColor = Color.FromArgb(41, 65, 79), ForeColor = ForeColor, FlatStyle = FlatStyle.Flat };
-            button.FlatAppearance.BorderColor = Color.FromArgb(62, 103, 111); Controls.Add(button); return button;
+            var button = new TerminalButton { Text = text, Left = x, Top = y, Width = width, Height = 40, Font = UITheme.Body(10F) };
+            Controls.Add(button); return button;
         }
         ProcessCandidate Current() { return list.SelectedItems.Count == 0 ? null : list.SelectedItems[0].Tag as ProcessCandidate; }
         void Reload()
@@ -129,6 +158,7 @@ namespace ProbablyStolenTrainer
         }
         public void RenderPreview(string path)
         {
+            renderingPreview = true;
             Text = L.T("选择游戏进程（界面预览 · 示例数据）");
             ShowInTaskbar = false; StartPosition = FormStartPosition.Manual; Location = new Point(-20000, -20000);
             Show(); Application.DoEvents();
