@@ -10,3 +10,8 @@ language.txt
 .vs/
 bin/
 obj/
+
+# Local release bundles and game analysis workspace
+/outputs/
+/work/
+/BUILD_INFO.txt
