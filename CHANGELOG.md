@@ -1,5 +1,25 @@
 # Changes / 更新记录
 
+## v1.1.1 — Connection diagnostics / 连接诊断版
+
+### 简体中文
+
+- 将笼统的“游戏对象尚未就绪”替换为具体失败对象，区分空指针、无效指针与读取失败，显示字段名称及地址。
+- 通过版本校验后，读取对象失败时自动生成 `logs/connection-*.txt`，记录修改器版本、进程、模块基址、失败链路，以及店铺、玩家、日期与声望类型的独立只读检查。程序目录无法写入时使用 `%LOCALAPPDATA%/ProbablyStolenTrainer/logs`，弹窗显示最终路径。
+- 诊断不写入游戏内存，不收集存档字符串或物品内容。日志写入失败不会掩盖原始连接错误。
+- 新增四项诊断测试，共 56 项通过，覆盖失败位置、中英文错误、可空标识、独立检查、文件回退及报告保存。
+
+这次尚未确定用户实机连接失败的具体对象；该版本用于取得定位证据，不能视为已经修复连接问题。请在出现问题的 Windows 内重新选择游戏进程，将新生成的连接日志用于排查。版本在本地 Git 记录，GitHub 仓库保持私有。
+
+### English
+
+- Replace the generic object-not-ready message with the failed field and address, distinguishing null pointers, invalid pointers and read failures.
+- Automatically save `logs/connection-*.txt` when object reads fail after version verification, including trainer/process/module details, the failed pointer chain and independent read-only checks of the shop, player, station and reputation type. Fall back to `%LOCALAPPDATA%/ProbablyStolenTrainer/logs` when the program directory cannot be written; show the final path in the error dialog.
+- Diagnostics write no game memory and collect no save-string values or item contents. A log-write failure preserves the original connection error.
+- Add four diagnostic tests, bringing the total to 56 passing checks, covering failure locations, bilingual errors, optional IDs, independent probes, directory fallback and report preservation.
+
+The specific live-game failure is still unknown. This build collects evidence for diagnosis and does not establish that connection is fixed. Reconnect on the Windows installation running the game and use the generated connection log for investigation. This version is recorded locally; the GitHub repository remains private.
+
 ## v1.1.0 — Back-room items / 后仓添加物品
 
 ### 简体中文

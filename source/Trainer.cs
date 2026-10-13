@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
@@ -103,7 +103,7 @@ namespace ProbablyStolenTrainer
             topmost.CheckedChanged += delegate { TopMost = topmost.Checked; }; Controls.Add(topmost);
             log = new TextBox { Left = 28, Top = 683, Width = 803, Height = 69, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, BackColor = Color.FromArgb(12, 19, 29), ForeColor = muted, BorderStyle = BorderStyle.FixedSingle };
             Controls.Add(log);
-            LabelAt(this, L.T("适配 Demo · Steam 构建 25382790  |  v1.1.0  |  选择进程，自动识别路径"), 28, 765, 806, 25).ForeColor = muted;
+            LabelAt(this, L.T("适配 Demo · Steam 构建 25382790  |  v1.1.1  |  选择进程，自动识别路径"), 28, 765, 806, 25).ForeColor = muted;
             SetConnected(false);
             Log(L.T("就绪。点击“选择进程…”连接游戏，无需设置盘符。请在玩游戏的 Windows 内运行。"));
             timer = new Timer { Interval = 1200 };

@@ -137,6 +137,72 @@ namespace ProbablyStolenTrainer
         }
         public static int Run(string report)
         {
+            Test("Connection failure identifies the exact null pointer without writing memory", delegate
+            {
+                var f = new Fixture(); f.Memory.Long(0x520800, 0);
+                Exception failure = null;
+                try { f.Session.Connect(); } catch (IOException ex) { failure = ex; }
+                Assert(failure != null && failure.Message.Contains("EmporiumEntry.Instance") && failure.Message.Contains("0x520800 -> 0x0"), "exact null location");
+                string diagnostic = f.Session.ConnectionReport(failure);
+                Assert(diagnostic.Contains("EmporiumEntry.Instance @ 0x520800 = 0x0"), "failed pointer recorded");
+                Assert(diagnostic.Contains("Shop: IOException") && diagnostic.Contains("Player: OK") && diagnostic.Contains("Station: OK"), "independent probes continue after failure");
+                Assert(f.Memory.Writes == 0 && f.Memory.CodeWrites == 0, "read-only diagnosis");
+            });
+            Test("Connection failure distinguishes corrupt and unreadable pointers in both languages", delegate
+            {
+                string previous = L.Language;
+                try
+                {
+                    L.SetLanguage("en"); var f = new Fixture(); f.Memory.Long(Fixture.Player + 0x30, 0x123);
+                    Exception failure = null;
+                    try { f.Session.Connect(); } catch (IOException ex) { failure = ex; }
+                    Assert(failure != null && failure.Message.StartsWith("Invalid object pointer: PlayerStore.runID"), "corrupt pointer in English");
+                    f = new Fixture(); f.Memory.BeforeRead = delegate(long address, int size)
+                    {
+                        if (address == Fixture.Base + BuildProfile.StationType) throw new IOException("Simulated unreadable pointer");
+                    };
+                    failure = null;
+                    try { f.Session.Connect(); } catch (IOException ex) { failure = ex; }
+                    Assert(failure != null && failure.Message.StartsWith("Cannot read object: StoreStation.TypeInfo"), "unreadable field identified");
+                    Assert(f.Session.ConnectionReport(failure).Contains("READ FAILED: Simulated unreadable pointer"), "original read error preserved");
+                    L.SetLanguage("zh-CN"); f = new Fixture(); f.Memory.Long(Fixture.Entry + 0x10, 0);
+                    try { f.Session.Connect(); } catch (IOException ex) { failure = ex; }
+                    Assert(failure.Message.StartsWith("对象为空：EmporiumEntry.m_CachedPtr"), "Chinese field-specific error");
+                    Assert(f.Memory.Writes == 0 && f.Memory.CodeWrites == 0, "no writes");
+                }
+                finally { L.SetLanguage(previous); }
+            });
+            Test("Connection report excludes game-owned strings and preserves optional null run IDs", delegate
+            {
+                var f = new Fixture("private-run-marker");
+                string diagnostic = f.Session.ConnectionReport(new IOException("test failure"));
+                Assert(!diagnostic.Contains("private-run-marker") && !diagnostic.Contains("测试势力"), "no save string values");
+                f.Memory.Long(Fixture.Player + 0x30, 0);
+                Assert(f.Session.Connect().RunId == "", "optional null run ID still accepted");
+                diagnostic = f.Session.ConnectionReport(new IOException("test failure"));
+                Assert(diagnostic.Contains("Player: OK") && diagnostic.Contains("PlayerStore.runID @ 0x100030 = 0x0"), "null optional field reported without rejection");
+                Assert(f.Memory.Writes == 0 && f.Memory.CodeWrites == 0, "report reads only");
+            });
+            Test("Diagnostic log fallback preserves UTF-8 and never replaces an existing report", delegate
+            {
+                string folder = Path.Combine(Path.GetTempPath(), "ProbablyStolenDiagnosticTest-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(folder);
+                string blocked = Path.Combine(folder, "blocked"), fallback = Path.Combine(folder, "logs");
+                File.WriteAllText(blocked, "file used to force directory failure");
+                try
+                {
+                    string first = ConnectionDiagnostics.Save("中文诊断", blocked, fallback);
+                    string second = ConnectionDiagnostics.Save("second report", fallback);
+                    Assert(Path.GetDirectoryName(first) == fallback && File.ReadAllText(first) == "中文诊断", "fallback and UTF-8");
+                    Assert(first != second && File.ReadAllText(first) == "中文诊断", "unique reports preserve previous evidence");
+                    Reject(delegate { ConnectionDiagnostics.Save("failure", blocked); });
+                }
+                finally
+                {
+                    if (Directory.Exists(fallback)) { foreach (string file in Directory.GetFiles(fallback)) File.Delete(file); Directory.Delete(fallback); }
+                    File.Delete(blocked); Directory.Delete(folder);
+                }
+            });
             Test("Item library is opt-in, reads the actual hotkey and never enables global dev mode", delegate
             {
                 var f = new Fixture(); Assert(!f.Session.ItemLibraryEnabled && f.Memory.CodeWrites == 0, "default off");

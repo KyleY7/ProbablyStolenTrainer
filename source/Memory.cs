@@ -163,7 +163,7 @@ namespace ProbablyStolenTrainer
         public long Address; public byte[] Before, After; public string Label;
         public Edit(long address, byte[] before, byte[] after, string label) { Address = address; Before = before; After = after; Label = label; }
     }
-    public sealed class Session : IDisposable
+    public sealed partial class Session : IDisposable
     {
         readonly IMemory memory;
         readonly long module;
@@ -187,21 +187,45 @@ namespace ProbablyStolenTrainer
                 if (gameModule == null) throw new IOException(L.T("所选进程未加载 GameAssembly.dll。请选择已读入存档的 Probably Stolen 游戏进程。"));
                 BuildProfile.Verify(gameModule.FileName);
                 var session = new Session(new ProcessMemory(process.Id), gameModule.BaseAddress.ToInt64());
+                session.GameDirectory = Path.GetDirectoryName(gameModule.FileName);
+                session.ProcessDescription = process.ProcessName + " · PID " + process.Id;
                 try
                 {
                     session.Connect();
-                    session.GameDirectory = Path.GetDirectoryName(gameModule.FileName);
-                    session.ProcessDescription = process.ProcessName + " · PID " + process.Id;
                     return session;
                 }
-                catch { session.Dispose(); throw; }
+                catch (Exception failure)
+                {
+                    string message = failure.Message;
+                    try
+                    {
+                        string report = session.ConnectionReport(failure);
+                        string path = ConnectionDiagnostics.Save(report,
+                            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs"),
+                            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ProbablyStolenTrainer", "logs"));
+                        message += Environment.NewLine + L.T("连接诊断已保存：") + path;
+                    }
+                    catch (Exception diagnosticFailure) { message += Environment.NewLine + L.T("诊断日志保存失败：") + diagnosticFailure.Message; }
+                    finally { session.Dispose(); }
+                    throw new IOException(message, failure);
+                }
             }
         }
-        long Ptr(long address, bool aligned = true, bool allowNull = false)
+        long Ptr(long address, bool aligned = true, bool allowNull = false, string field = null)
         {
-            long p = BitConverter.ToInt64(memory.Read(address, 8), 0);
+            field = field ?? "pointer";
+            long p;
+            try { p = BitConverter.ToInt64(memory.Read(address, 8), 0); }
+            catch (Exception ex)
+            {
+                TracePointer(field, address, "READ FAILED: " + ex.Message);
+                throw new IOException(L.F("无法读取对象：{0}。", field) + " [0x" + address.ToString("X") + "]", ex);
+            }
+            TracePointer(field, address, "0x" + p.ToString("X"));
             if (allowNull && p == 0) return 0;
-            if (p < 0x10000 || p >= 0x0000800000000000L || (aligned && (p & 7) != 0)) throw new IOException(L.T("游戏对象尚未就绪，请先读入存档。"));
+            if (p < 0x10000 || p >= 0x0000800000000000L || (aligned && (p & 7) != 0))
+                throw new IOException(L.F(p == 0 ? "对象为空：{0}。请查看连接诊断日志。" : "对象指针无效：{0}。请查看连接诊断日志。", field)
+                    + " [0x" + address.ToString("X") + " -> 0x" + p.ToString("X") + "]");
             return p;
         }
         int Int(long address) { return BitConverter.ToInt32(memory.Read(address, 4), 0); }
@@ -220,29 +244,30 @@ namespace ProbablyStolenTrainer
         }
         long Type(long rva, string name)
         {
-            long klass = Ptr(module + rva);
-            if (CString(Ptr(klass + 0x10, false)) != name) throw new InvalidDataException(L.T("游戏类型校验失败：") + name);
+            long klass = Ptr(module + rva, field: name + ".TypeInfo");
+            if (CString(Ptr(klass + 0x10, false, field: name + ".class.name")) != name) throw new InvalidDataException(L.T("游戏类型校验失败：") + name);
             return klass;
         }
         long Instance(long rva, string name)
         {
             long klass = Type(rva, name);
-            long instance = Ptr(Ptr(klass + 0xB8));
-            if (Ptr(instance) != klass) throw new InvalidDataException(L.T("游戏对象校验失败：") + name);
+            long fields = Ptr(klass + 0xB8, field: name + ".static_fields");
+            long instance = Ptr(fields, field: name + ".Instance");
+            if (Ptr(instance, field: name + ".instance.class") != klass) throw new InvalidDataException(L.T("游戏对象校验失败：") + name);
             return instance;
         }
         Snapshot ReadIdentity()
         {
             var s = new Snapshot();
             s.Entry = Instance(BuildProfile.EntryType, "EmporiumEntry");
-            s.EntryNative = Ptr(s.Entry + 0x10); // Unity native object must still be alive.
+            s.EntryNative = Ptr(s.Entry + 0x10, field: "EmporiumEntry.m_CachedPtr"); // Unity native object must still be alive.
             s.Player = Instance(BuildProfile.PlayerType, "PlayerStore");
             s.Station = Instance(BuildProfile.StationType, "StoreStation");
             s.SaveSlotId = Int(s.Player + 0x18);
             s.RunNumber = Int(s.Player + 0x38);
             // This build initializes runID to an empty string; InitialSave fills it later.
             // It is optional identity metadata, not evidence that gameplay has loaded.
-            long runId = Ptr(s.Player + 0x30, true, true);
+            long runId = Ptr(s.Player + 0x30, true, true, "PlayerStore.runID");
             s.RunId = runId == 0 ? "" : StringAt(runId);
             if (String.IsNullOrWhiteSpace(s.RunId)) s.RunId = "";
             return s;
@@ -252,16 +277,17 @@ namespace ProbablyStolenTrainer
             var s = ReadIdentity();
             s.Cash = Int(s.Player + 0x10); s.RentDays = Int(s.Player + 0x58); s.RentValue = Int(s.Player + 0x5C); s.Day = Int(s.Station + 0x30);
             if (s.Day < 0 || s.Day > 1000000 || Math.Abs((long)s.RentDays) > 1000000) throw new InvalidDataException(L.T("日期字段校验失败。"));
-            long list = Ptr(s.Player + 0x110), array = Ptr(list + 0x10), repType = Type(BuildProfile.ReputationType, "StoreReputation");
+            long list = Ptr(s.Player + 0x110, field: "PlayerStore.storeReputations"), array = Ptr(list + 0x10, field: "storeReputations._items"), repType = Type(BuildProfile.ReputationType, "StoreReputation");
             int count = Int(list + 0x18);
             long capacity = BitConverter.ToInt64(memory.Read(array + 0x18, 8), 0);
             if (count < 1 || count > 32 || capacity < count || capacity > 1024) throw new InvalidDataException(L.T("声望列表尚未就绪或结构不匹配。"));
             var ids = new HashSet<string>();
             for (int i = 0; i < count; i++)
             {
-                long obj = Ptr(array + 0x20 + i * 8);
-                if (Ptr(obj) != repType) throw new InvalidDataException(L.T("声望对象类型不匹配。"));
-                var f = new Faction { Address = obj, Id = StringAt(Ptr(obj + 0x20)), Display = StringAt(Ptr(obj + 0x18)), Amount = Double(obj + 0x10) };
+                string field = "storeReputations[" + i + "]";
+                long obj = Ptr(array + 0x20 + i * 8, field: field);
+                if (Ptr(obj, field: field + ".class") != repType) throw new InvalidDataException(L.T("声望对象类型不匹配。"));
+                var f = new Faction { Address = obj, Id = StringAt(Ptr(obj + 0x20, field: field + ".factionId")), Display = StringAt(Ptr(obj + 0x18, field: field + ".factionDisplay")), Amount = Double(obj + 0x10) };
                 if (String.IsNullOrWhiteSpace(f.Id) || !ids.Add(f.Id) || System.Double.IsNaN(f.Amount) || System.Double.IsInfinity(f.Amount) || Math.Abs(f.Amount) > 1000000)
                     throw new InvalidDataException(L.T("声望字段校验失败。"));
                 s.Factions.Add(f);

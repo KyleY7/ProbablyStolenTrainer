@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -14,6 +14,12 @@ namespace ProbablyStolenTrainer
         public static readonly string SettingsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ProbablyStolenTrainer", "language.txt");
         static readonly Dictionary<string, string> english = new Dictionary<string, string>
         {
+            { "无法读取对象：{0}。", "Cannot read object: {0}." },
+            { "对象为空：{0}。请查看连接诊断日志。", "Object is null: {0}. See the connection diagnostic log." },
+            { "对象指针无效：{0}。请查看连接诊断日志。", "Invalid object pointer: {0}. See the connection diagnostic log." },
+            { "连接诊断已保存：", "Connection diagnostics saved: " },
+            { "诊断日志保存失败：", "Could not save diagnostics: " },
+            { "无法保存连接诊断。", "Could not save connection diagnostics." },
             { "Probably Stolen · 金钱 / 时间 / 声望 / 鉴定", "Probably Stolen · Money / Time / Reputation / Appraisal" },
             { "试玩版修改器  /  金钱 · 时间 · 势力声望 · 鉴定价值", "Demo trainer  /  Money · Time · Reputation · Appraisal" },
             { "未连接  ·  先启动游戏并读入存档", "Not connected · Start the game and load a save" },
@@ -131,7 +137,7 @@ namespace ProbablyStolenTrainer
             { "撤销 ", "Undo " },
             { "当前连接不支持价值显示开关。", "This connection does not support the appraisal display toggle." },
             { "价值显示未能恢复。请重启游戏恢复原始提示。", "Appraisal display could not be restored. Restart the game to restore the original tooltip. " },
-            { "适配 Demo · Steam 构建 25382790  |  v1.1.0  |  选择进程，自动识别路径", "Demo · Steam build 25382790  |  v1.1.0  |  Automatic path detection" },
+            { "适配 Demo · Steam 构建 25382790  |  v1.1.1  |  选择进程，自动识别路径", "Demo · Steam build 25382790  |  v1.1.1  |  Automatic path detection" },
             { "语言已切换为简体中文。", "Language changed to English." },
             { "无法保存语言偏好，下次启动可能恢复默认语言：", "Could not save the language preference; the next launch may use the default: " },
             { "当前：{0:N0}", "Current: {0:N0}" },
