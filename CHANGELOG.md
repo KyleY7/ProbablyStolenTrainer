@@ -1,20 +1,20 @@
 # Changes / 更新记录
 
-## v2.0.0 — Terminal-inspired UI / 终端风格界面
+## v2.0.0 — New UI / 新 UI
 
 ### 简体中文
 
-- 重新设计主窗口与进程选择器：暖纸色、陶土橙、等宽命令风格标题与细线分组。
+- 主窗口与进程选择器更换新 UI。
 - 数值与声望放在左侧，游戏辅助与会话操作放在右侧，操作记录集中显示。
 - 主窗口可调整大小并适应屏幕工作区，较小窗口可滚动访问底部内容。
-- 自绘按钮和开关提供清楚的禁用状态与键盘焦点，补齐新版双语文字和截图。
+- 改善按钮和开关的禁用状态与键盘焦点显示，补齐新版双语文字和截图。
 - 保留 v1.1.2 的连接及游戏数值逻辑，新增滚动回归测试，共 61 项通过。
 
 详见[双语发布说明](docs/releases/v2.0.0.md)。仅供学习，欢迎大家反馈。
 
 ### English
 
-- Redesign the main window and process picker with warm paper colors, terracotta accents, monospace command-style headings and fine borders.
+- Update the main window and process picker with a new UI.
 - Put numeric edits and reputation on the left, game tools and session actions on the right, with a dedicated activity area.
 - Make the main window resizable and fit it to the screen working area; smaller windows scroll to lower content.
 - Add clearly painted disabled states and keyboard focus to buttons/toggles, plus updated bilingual text and screenshots.
