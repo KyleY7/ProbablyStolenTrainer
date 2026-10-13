@@ -1,0 +1,12 @@
+*.exe
+*.pdb
+*.zip
+*.partial
+test-results.txt
+SHA256.txt
+logs/
+backups/
+language.txt
+.vs/
+bin/
+obj/
