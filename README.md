@@ -10,13 +10,13 @@ A portable Windows x64 trainer for **Probably Stolen (深空当铺：可能是�
 
 **Validation status:** 61 automated checks passed, including the original connection-failure regression, synthetic game objects, connection diagnostics, native Win32 memory operations, language switching and scrolling in a smaller window. Both languages and the disconnected state were rendered and checked. **The user confirmed v1.1.2 worked in the game. The v2.0.0 UI and all features have not yet received complete independent live-game or exhaustive high-DPI validation.**
 
-**Provided for learning purposes only. Feedback is welcome.** See the [v2.0.0 release notes](docs/releases/v2.0.0.md) and send issues or suggestions through [GitHub Issues](https://github.com/KyleY7/probably-stolen-trainer/issues).
+**Provided for learning purposes only. Feedback is welcome.** See the [v2.0.0 release notes](docs/releases/v2.0.0.md) and send issues or suggestions through [GitHub Issues](https://github.com/KyleY7/ProbablyStolenTrainer/issues).
 
 ![English interface using sample data](docs/images/preview-en.png)
 
 ## Quick start
 
-1. Download [v2.0.0](https://github.com/KyleY7/probably-stolen-trainer/releases/tag/v2.0.0), extract `ProbablyStolenTrainer-v2.0.0-win-x64.zip`, and run `ProbablyStolenTrainer.exe` on Windows 10/11 with .NET Framework 4.8. Close any older trainer first.
+1. Download [v2.0.0](https://github.com/KyleY7/ProbablyStolenTrainer/releases/tag/v2.0.0), extract `ProbablyStolenTrainer-v2.0.0-win-x64.zip`, and run `ProbablyStolenTrainer.exe` on Windows 10/11 with .NET Framework 4.8. Close any older trainer first.
 2. Start the Demo through Steam and load a save into the shop. Run the trainer in the **same Windows system, user and privilege level** as the game.
 3. Use **Back up saves…** before editing. Pause the game, click **Select process…**, and select `Probably Stolen.exe`. Search by name, PID or path; refresh the list after starting the game. Double-clicking a row also connects.
 4. Check the displayed current values, enter a new value, and press the matching **Set** button.

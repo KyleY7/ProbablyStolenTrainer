@@ -10,13 +10,13 @@
 
 **验证状态：** 已通过 61 项自动测试，覆盖原连接故障回归、模拟游戏对象、连接诊断、Win32 内存操作、语言切换和小窗口滚动；中英文界面及未连接状态均已渲染检查。**用户已确认 v1.1.2 在游戏中可用，2.0 的新版界面与全部功能尚未逐项完成独立实机验证，高 DPI 环境也未穷举测试。**
 
-**仅供学习，欢迎大家反馈。** 详见 [v2.0.0 发布说明](docs/releases/v2.0.0.md)，问题与建议可提交到 [GitHub Issues](https://github.com/KyleY7/probably-stolen-trainer/issues)。
+**仅供学习，欢迎大家反馈。** 详见 [v2.0.0 发布说明](docs/releases/v2.0.0.md)，问题与建议可提交到 [GitHub Issues](https://github.com/KyleY7/ProbablyStolenTrainer/issues)。
 
 ![中文界面，使用示例数据](docs/images/preview-zh-CN.png)
 
 ## 快速开始
 
-1. 从 [v2.0.0 发布页](https://github.com/KyleY7/probably-stolen-trainer/releases/tag/v2.0.0)下载并解压 `ProbablyStolenTrainer-v2.0.0-win-x64.zip`，运行 `ProbablyStolenTrainer.exe`。需要 Windows 10/11 和 .NET Framework 4.8，先退出旧修改器再启动新版。
+1. 从 [v2.0.0 发布页](https://github.com/KyleY7/ProbablyStolenTrainer/releases/tag/v2.0.0)下载并解压 `ProbablyStolenTrainer-v2.0.0-win-x64.zip`，运行 `ProbablyStolenTrainer.exe`。需要 Windows 10/11 和 .NET Framework 4.8，先退出旧修改器再启动新版。
 2. 从 Steam 启动试玩版，读入存档并进入店铺。修改器与游戏须在**同一套 Windows、同一用户与权限级别**下运行。
 3. 先用**备份存档…**保留副本。暂停游戏，点击**选择进程…**，选中 `Probably Stolen.exe`。支持搜索名称、PID、路径和刷新列表；双击一行也能连接。
 4. 核对当前值，输入目标值，点击对应的设置按钮。
